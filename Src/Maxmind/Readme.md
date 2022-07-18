@@ -36,6 +36,7 @@ Update Configuration File
 ```
 sudo sed -i "s/^AccountID .*/AccountID $mmacctid/gi" /etc/GeoIP.conf
 sudo sed -i "s/^LicenseKey .*/LicenseKey $mmlickey/gi" /etc/GeoIP.conf
+sudo sed -i "s/^EditionIDs .*/EditionIDs GeoLite2-ASN GeoLite2-City GeoLite2-Country/gi" /etc/GeoIP.conf
 
 ```
 
@@ -44,4 +45,8 @@ sudo sed -i "s/^LicenseKey .*/LicenseKey $mmlickey/gi" /etc/GeoIP.conf
 1. Save `upd-geo.sh` on the graylog-server in path `/usr/share/GeoIP`
 2. Make executable
     * `chmod +x /usr/share/GeoIP/upd-geo.sh`
-3. 
+3. Add to crontab
+
+```
+(sudo crontab -l 2>/dev/null; echo "35 13 * * 2,5 /usr/share/GeoIP/upd-geo.sh") | sudo crontab -
+```
