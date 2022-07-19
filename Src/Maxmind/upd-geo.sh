@@ -24,6 +24,19 @@ mv /root/mmdb/backups/GeoLite2-ASN.mmdb /root/mmdb/backups/GeoLite2-ASN.mmdb.$d.
 
 # copy updated Geo City
 echo copy new mmdb to tmp file
+cp /usr/share/GeoIP/GeoLite2-City.mmdb /etc/graylog/server/GeoLite2-City.tmp
+cp /usr/share/GeoIP/GeoLite2-ASN.mmdb /etc/graylog/server/GeoLite2-ASN.tmp
+
+echo delete existing mmdb
+/usr/bin/rm -f /etc/graylog/server/GeoLite2-City.mmdb
+/usr/bin/rm -f /etc/graylog/server/GeoLite2-ASN.mmdb
+
+echo pausing for 5s
+sleep 5
+
+echo rename .tmp to .mmdb
+mv /etc/graylog/server/GeoLite2-City.tmp /etc/graylog/server/GeoLite2-City.mmdb
+mv /etc/graylog/server/GeoLite2-ASN.tmp  /etc/graylog/server/GeoLite2-ASN.mmdb
 
 # copy update Geo ASN
 cp /usr/share/GeoIP/GeoLite2-City.mmdb /opt/graylog/
