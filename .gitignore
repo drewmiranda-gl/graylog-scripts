@@ -1,0 +1,3 @@
+.DS_Store
+Src/AnomlyDetectionDocGen/out.md
+Src/AnomlyDetectionDocGen/*.json
