@@ -34,13 +34,6 @@ for anomRuleTitle in listAnomDetRules:
     print("")
     print("## " + anomRuleTitle)
     print("")
-
-    # Requirements
-    sConstraints = dictAnomDetRules[anomRuleTitle]['constraints']
-    print("### Requirements: ")
-    for sConstraint in sConstraints:
-        print(sConstraint['type'] + ": " + sConstraint['version'])
-    print("")
     
     # Description
     sDesc = dictAnomDetRules[anomRuleTitle]['data']['description']['@value']
@@ -51,6 +44,14 @@ for anomRuleTitle in listAnomDetRules:
 
     print("Config | Value")
     print("---- | ----")
+
+    # Requirements
+    sConstraints = dictAnomDetRules[anomRuleTitle]['constraints']
+    # print("### Requirements: ")
+    sConcat = ""
+    for sConstraint in sConstraints:
+        sConcat = sConcat + "- " + sConstraint['type'] + ": " + sConstraint['version']
+    print("Requirements | " + sConcat)
 
     # Indices
     sIndices = dictAnomDetRules[anomRuleTitle]['data']['indices']
