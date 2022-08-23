@@ -1,3 +1,5 @@
+# 5 * * * * /root/log-gl-lasthour-traffic.sh >/dev/null 2>&1
+
 curdt=$(date +"%Y-%m-%d")
 mongjs=$(mongo graylog --eval 'db.traffic.find({}).limit(2).sort({bucket:-1})' --quiet | tail -n 1)
 numonly=$(echo $mongjs | grep -oP "\"output\"\s?:\s?{\s?.*?NumberLong\(\d+\)" | grep -oP "\(\d+\)" | grep -oP "\d+")
