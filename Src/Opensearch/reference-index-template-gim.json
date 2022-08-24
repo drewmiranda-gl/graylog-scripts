@@ -1,0 +1,71 @@
+{
+    "index_patterns": ["gimness_*"],
+    "template": {
+        "mappings": {
+            "_source": {
+                "enabled": true
+            },
+            "dynamic_templates": [
+                {
+                    "internal_fields": {
+                        "mapping": {
+                            "type": "keyword"
+                        },
+                        "match_mapping_type": "string",
+                        "match": "gl2_*"
+                    }
+                },
+                {
+                    "store_generic": {
+                        "mapping": {
+                            "type": "keyword"
+                        },
+                        "match_mapping_type": "string"
+                    }
+                }
+            ],
+            "properties": {
+                "gl2_processing_timestamp": {
+                    "format": "uuuu-MM-dd HH:mm:ss.SSS",
+                    "type": "date"
+                },
+                "gl2_accounted_message_size": {
+                    "type": "long"
+                },
+                "gl2_receive_timestamp": {
+                    "format": "uuuu-MM-dd HH:mm:ss.SSS",
+                    "type": "date"
+                },
+                "full_message": {
+                    "fielddata": false,
+                    "analyzer": "standard",
+                    "type": "text"
+                },
+                "streams": {
+                    "type": "keyword"
+                },
+                "message": {
+                    "fielddata": false,
+                    "analyzer": "standard",
+                    "type": "text"
+                },
+                "timestamp": {
+                    "format": "uuuu-MM-dd HH:mm:ss.SSS",
+                    "type": "date"
+                },
+                "source_ip": {"type": "ip"},
+                "source_nat_ip": {"type": "ip"},
+                "host_ip": {"type": "ip"},
+                "associated_ip": {"type": "ip"},
+                "destination_ip": {"type": "ip"},
+                "destination_nat_ip": {"type": "ip"},
+                "event_observer_ip": {"type": "ip"},
+                "vendor_private_ip": {"type": "ip"},
+                "vendor_private_ipv6": {"type": "ip"},
+                "vendor_public_ip": {"type": "ip"},
+                "vendor_public_ipv6": {"type": "ip"},
+                "network_forwarded_ip": {"type": "ip"}
+            }
+        }
+    }
+}
