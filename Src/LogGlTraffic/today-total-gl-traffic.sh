@@ -3,6 +3,9 @@
 # 5 * * * * /root/today-total-gl-traffic.sh >/dev/null 2>&1
 
 authb64=$(cat authb64.txt)
+
+glClusterLicenseTrafficLimitBytes=$(curl --location --request GET 'http://graylog.drew.local:9000/api/plugins/org.graylog.plugins.license/licenses/status/for-subject?subject=/license/enterprise/views' --header "Authorization: Basic $authb64" | jq '.status.license.enterprise.traffic_limit')
+
 sample=$(curl --location --request GET 'http://graylog.drew.local:9000/api/system/cluster/traffic' --header "Authorization: Basic $authb64" | jq '.output')
 echo "${sample}" > out.txt
 File="out.txt"
@@ -37,4 +40,8 @@ echo "Current Day Total Traffic: $iTodayTrafficBytes"
 iTrfKb=$(( $iTodayTrafficBytes / 1000 ))
 iTrfMb=$(( $iTrfKb / 1000 ))
 
-curl -X POST -H 'Content-Type: application/json' -d "{ \"host\": \"graylog_traffic\", \"short_message\": \"graylog traffic\", \"date_only\":\"$mostRecentDate\", \"gl_todays_traffic_bytes\":$iTodayTrafficBytes, \"gl_todays_traffic_kb\":$iTrfKb, \"gl_todays_traffic_mb\":$iTrfMb }" 'http://graylog.drew.local:12201/gelf'
+iTrfLimitKb=$(( $glClusterLicenseTrafficLimitBytes / 1000 ))
+iTrfLimitMb=$(( $iTrfLimitKb / 1000 ))
+echo "Traffic Limit: $glClusterLicenseTrafficLimitBytes"
+
+curl -X POST -H 'Content-Type: application/json' -d "{ \"host\": \"graylog_traffic\", \"short_message\": \"graylog traffic\", \"date_only\":\"$mostRecentDate\", \"gl_todays_traffic_bytes\":$iTodayTrafficBytes, \"gl_todays_traffic_kb\":$iTrfKb, \"gl_todays_traffic_mb\":$iTrfMb, \"gl_traffic_limit_bytes\":$glClusterLicenseTrafficLimitBytes, \"gl_traffic_limit_kb\":$iTrfLimitKb, \"gl_traffic_limit_mb\":$iTrfLimitMb }" 'http://graylog.drew.local:12201/gelf'
