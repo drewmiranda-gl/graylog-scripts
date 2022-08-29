@@ -1,6 +1,49 @@
 {
-    "index_patterns": ["gimness_*"],
+    "index_patterns": ["gimness_*", "custom_gim_*"],
     "template": {
+        "settings": {
+            "analysis": {
+                "normalizer": {
+                    "gimness_loweronly": {
+                        "type": "custom",
+                        "char_filter": [],
+                        "filter": [ "lowercase" ]
+                    }
+                },
+                "char_filter": {
+                    "gimness_query_trailing_dot": {
+                        "type": "pattern_replace",
+                        "pattern": "(.*)\\.$",
+                        "replacement": "$1"
+                    }
+                },
+                "analyzer": {
+                    "gimness_query_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "gimness_query_host_tokenizer",
+                        "filter": [ "lowercase" ],
+                        "char_filter": [ "gimness_query_trailing_dot" ]
+                    },
+                    "gimness_query_path_analyzer": {
+                        "type": "custom",
+                        "tokenizer": "gimness_query_host_tokenizer",
+                        "filter": [ "lowercase", "reverse" ]
+                    },
+                    "gimness_query_answer_analyzer": {
+                        "type": "pattern",
+                        "pattern": "\\,+"
+                    }
+                },
+                "tokenizer": {
+                    "gimness_query_host_tokenizer": {
+                        "type": "path_hierarchy",
+                        "delimiter": ".",
+                        "reverse": true,
+                        "skip": 0
+                    }
+                }
+            }
+        },
         "mappings": {
             "_source": {
                 "enabled": true
@@ -25,6 +68,10 @@
                 }
             ],
             "properties": {
+                "source" : {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly"
+                },
                 "gl2_processing_timestamp": {
                     "format": "uuuu-MM-dd HH:mm:ss.SSS",
                     "type": "date"
@@ -53,18 +100,111 @@
                     "format": "uuuu-MM-dd HH:mm:ss.SSS",
                     "type": "date"
                 },
-                "source_ip": {"type": "ip"},
-                "source_nat_ip": {"type": "ip"},
-                "host_ip": {"type": "ip"},
+                "user_name": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly",
+                    "copy_to": "associated_user_name"
+                },
+                "gim_version": {
+                    "type": "keyword"
+                },
+                "gl2_gims_version": {
+                    "type": "alias",
+                    "path": "gim_version"
+                },
+                "gim_tags": {
+                    "type": "keyword"
+                },
+                "gl2_tags": {
+                    "path": "gim_tags",
+                    "type": "alias"
+                },
+                "gim_event_category": {
+                    "type": "keyword"
+                },
+                "gim_event_subcategory": {
+                    "type": "keyword"
+                },
+                "gim_event_type": {
+                    "type": "keyword"
+                },
+                "source_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
+                "source_nat_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
+                "host_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
                 "associated_ip": {"type": "ip"},
-                "destination_ip": {"type": "ip"},
-                "destination_nat_ip": {"type": "ip"},
-                "event_observer_ip": {"type": "ip"},
+                "destination_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
+                "destination_nat_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
+                "event_observer_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
                 "vendor_private_ip": {"type": "ip"},
                 "vendor_private_ipv6": {"type": "ip"},
                 "vendor_public_ip": {"type": "ip"},
                 "vendor_public_ipv6": {"type": "ip"},
-                "network_forwarded_ip": {"type": "ip"}
+                "network_forwarded_ip": {
+                    "type": "ip",
+                    "copy_to": "associated_ip"
+                },
+                "source_port": {"type": "integer"},
+                "source_nat_port": {"type": "integer"},
+                "destination_port": {"type": "integer"},
+                "source_reference": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly"
+                },
+                "source_hostname": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly"
+                },
+                "source_mac": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly",
+                    "copy_to": "associated_mac"
+                },
+                "associated_mac": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly"
+                },
+                "destination_hostname": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly"
+                },
+                "destination_mac": {
+                    "type": "keyword",
+                    "normalizer": "gimness_loweronly",
+                    "copy_to": "associated_mac"
+                },
+                "associated_host": {
+                    "type": "keyword"
+                },
+                "network_bytes": {
+                    "type": "long"
+                },
+                "network_bytes_rx": {
+                    "type": "long"
+                },
+                "network_bytes_tx": {
+                    "type": "long"
+                },
+                "network_packets": {
+                    "type": "long"
+                }
             }
         }
     }
