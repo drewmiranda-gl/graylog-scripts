@@ -84,7 +84,6 @@ services:
     - "13301:13301/tcp" # Forwarder data
     - "13302:13302/tcp" # Forwarder config
     volumes:
-      - "./storage/graydock-graylog/graylog_data:/usr/share/graylog/data/data"
       - "./storage/graydock-graylog/graylog_journal:/usr/share/graylog/data/journal"
     restart: unless-stopped
     deploy:
