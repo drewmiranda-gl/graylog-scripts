@@ -3,3 +3,5 @@ Src/AnomlyDetectionDocGen/out.md
 Src/AnomlyDetectionDocGen/*.json
 Src/EventDefDocGen/*.json
 Src/EventDefDocGen/out.md
+Src/docker/.env
+Src/docker/storage/*
