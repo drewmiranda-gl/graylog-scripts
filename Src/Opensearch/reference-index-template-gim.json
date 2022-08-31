@@ -1,5 +1,5 @@
 {
-    "index_patterns": ["gimness_*", "custom_gim_*"],
+    "index_patterns": ["gimness_*", "custom_gim_*", "graylog_*"],
     "template": {
         "settings": {
             "analysis": {
