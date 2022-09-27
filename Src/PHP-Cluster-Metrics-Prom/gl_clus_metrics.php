@@ -51,8 +51,32 @@ foreach ($arrJson as $sClusterId => $aClusterMetrics) {
 		
 		$sMetricName = $aMetric['full_name'];
 		$sMetricName = preg_replace("#\.|\-#i", "_", $sMetricName);
+
+		/*
+		 * 	metric type?
+		 */
+		$sMetricType = $aMetric['type'];
+
+		$sMetricValue = 0;
+		if (strtolower($sMetricType) === 'gauge') {
 		$sMetricValue = $aMetric['metric']['value'];
 		$sMetricValue = round($sMetricValue, 17);
+		}
+		elseif (strtolower($sMetricType) === 'timer') {
+			$strDurationUnit = $aMetric['metric']['duration_unit'];
+			$strRateUnit	 = str_replace("/", "", $aMetric['metric']['rate_unit']);
+
+			$strExtraAttr = ", ";
+			$strExtraAttr .= "duration_unit=\"{$strDurationUnit}\"";
+			$strExtraAttr .= ", ";
+			$strExtraAttr .= "rate_unit=\"{$strRateUnit}\"";
+
+			$sMetricValue = $aMetric['metric']['time']['99th_percentile'];
+			$sMetricValue = round($sMetricValue, 17);
+		}
+		else {
+			$sMetricValue = 0;
+		}
 
 		if (preg_match("#[a-zA-Z]#i", $sMetricValue)) {
 			$bInclude = false;
@@ -62,7 +86,7 @@ foreach ($arrJson as $sClusterId => $aClusterMetrics) {
 			if ($i > 0) {
 				echo "\n";
 			}
-			echo $sMetricName.'{node="'.$sClusterId.'"} '.$sMetricValue;
+			echo $sMetricName.'{node="'.$sClusterId.'"'.$strExtraAttr.'} '.$sMetricValue;
 			++$i;
 		}
 	}
