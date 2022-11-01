@@ -6,3 +6,4 @@ Src/EventDefDocGen/out.md
 Src/docker/.env
 Src/docker/storage/*
 Src/SigmaRulesDocGen/rules/*
+Src/SigmaRulesDocGen/auth.ini
