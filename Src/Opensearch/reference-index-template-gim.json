@@ -204,6 +204,9 @@
                 },
                 "network_packets": {
                     "type": "long"
+                },
+                "winlogbeat_winlog_event_data_param1": {
+                    "type": "keyword"
                 }
             }
         }
