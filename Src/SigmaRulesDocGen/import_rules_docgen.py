@@ -7,8 +7,6 @@ from requests.auth import HTTPBasicAuth
 import configparser
 from os.path import exists
 
-# pip install pyyaml
-
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--debug", "-d", help="For debugging", action=argparse.BooleanOptionalAction)
