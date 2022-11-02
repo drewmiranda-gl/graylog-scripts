@@ -14,7 +14,7 @@ parser.add_argument("--dir", help="Directory of sigma rules", default="rules")
 parser.add_argument("--config", help="Config Filename", default="config.ini")
 parser.add_argument("--verbose", help="Verbose output.", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--batch-size", help="Max number of rules to import with each API request.", default=100)
-parser.add_argument("--method", help="[api|local] Import Sigma via local files or via github API", default="api")
+parser.add_argument("--method", help="[api|file] Import Sigma via local files or via github API", default="file")
 
 args = parser.parse_args()
 configFromArg = vars(args)
@@ -160,7 +160,7 @@ def doImportSigmaRulesUsingList(argList):
             sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
 
             for fileName in argList:
-                print("\nUploading file: " + fileName + defText)
+                print("Uploading file: " + fileName + defText)
                 raw = open(fileName).read()
 
                 # send req, upload json content pack file
@@ -176,7 +176,7 @@ def doImportSigmaRulesUsingList(argList):
                 # print(r.text)
                 if r.status_code == 200:
                     # if configFromArg['verbose']:
-                    print(strIndentOne + successText + "Success." + defText)
+                    print(strIndentOne + successText + "Success" + defText)
                     gIntSuccess = gIntSuccess + 1
                 else:
                     if r.status_code == 400:
