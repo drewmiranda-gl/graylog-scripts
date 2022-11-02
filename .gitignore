@@ -8,3 +8,5 @@ Src/docker/storage/*
 Src/SigmaRulesDocGen/rules/*
 Src/SigmaRulesDocGen/auth.ini
 Src/SigmaRulesDocGen/rules copy/*
+Src/SigmaRulesDocGen/out.md
+Src/SigmaRulesDocGen/ids.txt
