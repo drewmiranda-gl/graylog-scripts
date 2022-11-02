@@ -14,6 +14,7 @@ parser.add_argument("--dir", help="Directory of sigma rules", default="rules")
 parser.add_argument("--config", help="Config Filename", default="config.ini")
 parser.add_argument("--verbose", help="Verbose output.", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--batch-size", help="Max number of rules to import with each API request.", default=100)
+parser.add_argument("--method", help="[api|local] Import Sigma via local files or via github API", default="api")
 
 args = parser.parse_args()
 configFromArg = vars(args)
@@ -97,7 +98,8 @@ sArgUser = config['DEFAULT']['user']
 sArgPw = config['DEFAULT']['password']
 
 # print("Graylog Server: " + sArgHost)
-print(alertText + "Target Graylog Server: " + successText + sArgHost + defText + "\n")
+print(alertText + "Target Graylog Server: " + successText + sArgHost + defText)
+print(alertText + "Rules Import Method: " + successText + configFromArg['method'] + defText + "\n")
 
 # build server:host and concat with URI
 sArgBuildUri=sArgBuildUri+sArgHost+":"+sArgPort
@@ -122,33 +124,68 @@ def doImportSigmaRulesUsingList(argList):
     if configFromArg['debug']:
         print(alertText + "debug enabled, skipping upload web req" + defText + "\n")
     else:
-        # specify URL
-        sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules/import"
+        if configFromArg['method'] == "api":
+            # =====================================================================
+            # using import via Github API
+            # specify URL
+            sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules/import"
+            # headers
+            sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
+            # send req, upload json content pack file
+            oJson = {"keys": argList}
+            r = requests.post(sUrl, json = oJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+            
+            if r.status_code == 200:
+                if configFromArg['verbose']:
+                    print(strIndentOne + successText + "Web Request Successful." + defText)
 
-        # headers
-        sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
-
-        # send req, upload json content pack file
-        oJson = {"keys": argList}
-        r = requests.post(sUrl, json = oJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                # print(r.text)
+                oJsonResp = json.loads(r.text)
+                print(strIndentOne + "Success Count: " + successText + str(oJsonResp["success_count"]) + defText + " " + "Failure Count: " + errorText + str(oJsonResp["failure_count"]) + defText)
+                
+                gIntSuccess = gIntSuccess + oJsonResp["success_count"]
+                gIntFailure = gIntFailure + oJsonResp["failure_count"]
+                
+                for strError in oJsonResp["errors"]:
+                    print("\n" + strIndentOne + errorText + strError + defText)
+            else:
+                print(strIndentOne + errorText + "Error: " + str(r.status_code) + " (" + r.text + ")" + defText)
         
-        if r.status_code == 200:
-            if configFromArg['verbose']:
-                print(strIndentOne + successText + "Web Request Successful." + defText)
+        if configFromArg['method'] == "file":
+            # =====================================================================
+            # upload file
+            # specify URL
+            sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules"
+            # headers
+            sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
 
-            # print(r.text)
-            oJsonResp = json.loads(r.text)
-            print(strIndentOne + "Success Count: " + successText + str(oJsonResp["success_count"]) + defText + " " + "Failure Count: " + errorText + str(oJsonResp["failure_count"]) + defText)
-            
-            gIntSuccess = gIntSuccess + oJsonResp["success_count"]
-            gIntFailure = gIntFailure + oJsonResp["failure_count"]
-            
-            for strError in oJsonResp["errors"]:
-                print("\n" + strIndentOne + errorText + strError + defText)
+            for fileName in argList:
+                print("\nUploading file: " + fileName + defText)
+                raw = open(fileName).read()
 
-        else:
-            print(strIndentOne + errorText + "Error: " + str(rInst.status_code) + " (" + rInst.text + ")" + defText)
-            
+                # send req, upload json content pack file
+                oJson = {
+                    "search_within_ms": 900000,
+                    "execute_every_ms": 900000,
+                    "streams": [],
+                    "source": raw
+                }
+                # print(oJson)
+                r = requests.post(sUrl, json = oJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                # print("Status Code: " + str(r.status_code))
+                # print(r.text)
+                if r.status_code == 200:
+                    # if configFromArg['verbose']:
+                    print(strIndentOne + successText + "Success." + defText)
+                    gIntSuccess = gIntSuccess + 1
+                else:
+                    if r.status_code == 400:
+                        oJsonResp = json.loads(r.text)
+                        print("" + strIndentOne + "ERROR: " + errorText + oJsonResp["message"] + defText)
+                    else:
+                        print(strIndentOne + errorText + "Error: " + str(r.status_code) + " (" + r.text + ")" + defText)
+                    gIntFailure = gIntFailure + 1
+
         # print(r.headers)
 
 def doSplitListByMaxAllowed(argList):
@@ -218,9 +255,9 @@ def doSplitListByMaxAllowed(argList):
 # =============================================================================
 # =============================================================================
 
-print("Loading from directory \"" + successText + configFromArg["import_dir"] + defText + "\"" + "\n")
+print("Loading from directory \"" + successText + configFromArg["dir"] + defText + "\"" + "\n")
 
-oFiles = glob.glob(configFromArg["import_dir"] + "/**/*.yml", recursive=True)
+oFiles = glob.glob(configFromArg["dir"] + "/**/*.yml", recursive=True)
 for file in oFiles:
     if configFromArg['verbose']:
         print(file)
