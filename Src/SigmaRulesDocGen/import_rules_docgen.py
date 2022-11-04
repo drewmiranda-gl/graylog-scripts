@@ -181,7 +181,10 @@ def doImportSigmaRulesUsingList(argList):
                 else:
                     if r.status_code == 400:
                         oJsonResp = json.loads(r.text)
+                        if "message" in oJsonResp:
                         print("" + strIndentOne + "ERROR: " + errorText + oJsonResp["message"] + defText)
+                    else:
+                            print("" + strIndentOne + "ERROR: " + errorText + str(oJsonResp) + defText)
                     else:
                         print(strIndentOne + errorText + "Error: " + str(r.status_code) + " (" + r.text + ")" + defText)
                     gIntFailure = gIntFailure + 1
