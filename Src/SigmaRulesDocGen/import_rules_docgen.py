@@ -113,7 +113,7 @@ gIntTotalWebReqs = 0
 def doBuildSigmaImportList(argFile):
     listSigmaRulesToImport.append(argFile)
 
-def doImportSigmaRulesUsingList(argList):
+def doImportSigmaRulesUsingList(argList, argListItemCount):
     global gIntSuccess
     global gIntFailure
 
@@ -159,8 +159,10 @@ def doImportSigmaRulesUsingList(argList):
             # headers
             sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
 
+            iTotalProcessed = 0
             for fileName in argList:
-                print("Uploading file: " + fileName + defText)
+                iTotalProcessed = iTotalProcessed + 1
+                print("Uploading file: " + fileName + defText + " (" + str(iTotalProcessed) + " of " + str(argListItemCount) + ")")
                 raw = open(fileName).read()
 
                 # send req, upload json content pack file
@@ -182,8 +184,8 @@ def doImportSigmaRulesUsingList(argList):
                     if r.status_code == 400:
                         oJsonResp = json.loads(r.text)
                         if "message" in oJsonResp:
-                        print("" + strIndentOne + "ERROR: " + errorText + oJsonResp["message"] + defText)
-                    else:
+                            print("" + strIndentOne + "ERROR: " + errorText + oJsonResp["message"] + defText)
+                        else:
                             print("" + strIndentOne + "ERROR: " + errorText + str(oJsonResp) + defText)
                     else:
                         print(strIndentOne + errorText + "Error: " + str(r.status_code) + " (" + r.text + ")" + defText)
@@ -249,10 +251,10 @@ def doSplitListByMaxAllowed(argList):
             # print(intListCount)
             # print(dictLists[intListCount])
             if configFromArg['method'] == "api":
-            print("\n"+ alertText + "Web Request " + str(intListCount) + " of " + str(intTotalWebReqsNeededForImport) + defText)
-            doImportSigmaRulesUsingList(dictLists[intListCount])
+                print("\n"+ alertText + "Web Request " + str(intListCount) + " of " + str(intTotalWebReqsNeededForImport) + defText)
+            doImportSigmaRulesUsingList(dictLists[intListCount], iListCount)
     else:
-        doImportSigmaRulesUsingList(argList)
+        doImportSigmaRulesUsingList(argList, iListCount)
 
 
 # =============================================================================
