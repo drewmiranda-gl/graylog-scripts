@@ -248,6 +248,7 @@ def doSplitListByMaxAllowed(argList):
             # print("=============================================================================")
             # print(intListCount)
             # print(dictLists[intListCount])
+            if configFromArg['method'] == "api":
             print("\n"+ alertText + "Web Request " + str(intListCount) + " of " + str(intTotalWebReqsNeededForImport) + defText)
             doImportSigmaRulesUsingList(dictLists[intListCount])
     else:
