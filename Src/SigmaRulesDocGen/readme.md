@@ -12,14 +12,14 @@ Presently there isn't a way to upload ALL rules from the [SigmaHQ sigma](https:/
 
 # How to use?
 
-## Prerequisites
+## Prerequisites / Install
 
 * Local copy of this repo (e.g. Download as Zip, or via git clone)
 * Local copy of [SigmaHQ sigma](https://github.com/SigmaHQ/sigma) repo (specifically the `rules` directory)
 * Python 3 (tested on 3.9.13)
-    * Python modules
-        * requests (pip install requests)
-        * configparser (pip install configparser)
+* [pip](https://pypi.org/project/pip/)
+    * Install required pip packages
+        * `python3 -m pip install -r requirements.txt`
 * Configure contents of config.ini
 
 ## Instructions
