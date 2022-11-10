@@ -8,7 +8,7 @@ import configparser
 from os.path import exists
 import math
 import yaml
-import pprint
+import urllib.parse
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -145,6 +145,23 @@ def safeGetKeyFromDict(strKey, objDict, strDefault):
     else:
         return strDefault
 
+def urlBuildHelper(strArgPath, strArgFile, strArgFileType):
+    strFile = strArgFile
+
+    bPrependUnderscore = False
+    if strFile.lower() == "no category":
+        bPrependUnderscore = True
+    elif strFile.lower() == "no product":
+        bPrependUnderscore = True
+    elif strFile.lower() == "no service":
+        bPrependUnderscore = True
+
+    if bPrependUnderscore == True:
+        strFile = "_" + strFile
+
+    ret = urllib.parse.quote("../" + strArgPath + "/" + strFile + "." + strArgFileType)
+    return ret
+
 def generateMarkDown(sArgRules):
     global dictCounts
     
@@ -199,15 +216,15 @@ def generateMarkDown(sArgRules):
 
         # Category
         # print("Category | " + str(strCategory) + "")
-        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Category | " + str(strCategory) + "" + "\n"
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Category | [" + str(strCategory) + "]("+ urlBuildHelper("categories", str(strCategory), "md") + ")" + "\n"
 
         # Product
         # print("Product | " + str(strProduct) + "")
-        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Product | " + str(strProduct) + "" + "\n"
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Product | [" + str(strProduct) + "]("+ urlBuildHelper("products", str(strProduct), "md") + ")" + "\n"
 
         # Service
         # print("Service | " + str(strService) + "")
-        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Service | " + str(strService) + "" + "\n"
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Service | [" + str(strService) + "]("+ urlBuildHelper("services", str(strService), "md") + ")" + "\n"
 
         # Level
         # print("Level | `" + str(sArgRules[rule]["level"]) + "`")
@@ -227,14 +244,38 @@ def generateMarkDown(sArgRules):
 
         # =====================================================================
         # Categories
-        bCategoryExists = False
+        bExists = False
         if strCategory in dictRulesByCategory:
-            bCategoryExists = True
+            bExists = True
         
-        if bCategoryExists == False:
+        if bExists == False:
             dictRulesByCategory[strCategory] = {}
         
         dictRulesByCategory[strCategory][strRuleTitle] = strRuleTitle
+        # =====================================================================
+
+        # =====================================================================
+        # Products
+        bExists = False
+        if strProduct in dictRulesByProduct:
+            bExists = True
+        
+        if bExists == False:
+            dictRulesByProduct[strProduct] = {}
+        
+        dictRulesByProduct[strProduct][strRuleTitle] = strRuleTitle
+        # =====================================================================
+
+        # =====================================================================
+        # Services
+        bExists = False
+        if strService in dictRulesByService:
+            bExists = True
+        
+        if bExists == False:
+            dictRulesByService[strService] = {}
+        
+        dictRulesByService[strService][strRuleTitle] = strRuleTitle
         # =====================================================================
     
     # ===================================================================================
@@ -243,11 +284,54 @@ def generateMarkDown(sArgRules):
     createDirIfNotExists("categories/")
     # write per category
     for ruleCategory in sorted(dictRulesByCategory):
-        f = open("categories/" + str(iCount) + " " + ruleCategory + ".md", "a")
+        strThingForFileName = ruleCategory
+        if strThingForFileName == "No Category":
+            strThingForFileName = "_" + strThingForFileName
+        strFileName = strThingForFileName
+        f = open("categories/" + strFileName + ".md", "a")
 
         writeToFile(f, "## " + ruleCategory)
-        # writeToFile(f, dictRulesByCategory[ruleCategory])
         for rule in sorted(dictRulesByCategory[ruleCategory]):
+            writeToFile(f, dictRules[rule])
+        
+        iCount = iCount + 1
+        f.close()
+    # ===================================================================================
+    
+    # ===================================================================================
+    # Products
+    iCount = 1
+    createDirIfNotExists("products/")
+    # write per category
+    for ruleProduct in sorted(dictRulesByProduct):
+        strThingForFileName = ruleProduct
+        if strThingForFileName == "No Product":
+            strThingForFileName = "_" + strThingForFileName
+        strFileName = strThingForFileName
+        f = open("products/" + strFileName + ".md", "a")
+
+        writeToFile(f, "## " + ruleProduct)
+        for rule in sorted(dictRulesByProduct[ruleProduct]):
+            writeToFile(f, dictRules[rule])
+        
+        iCount = iCount + 1
+        f.close()
+    # ===================================================================================
+
+    # ===================================================================================
+    # Services
+    iCount = 1
+    createDirIfNotExists("services/")
+    # write per category
+    for ruleService in sorted(dictRulesByService):
+        strThingForFileName = ruleService
+        if strThingForFileName == "No Service":
+            strThingForFileName = "_" + strThingForFileName
+        strFileName = strThingForFileName
+        f = open("services/" + strFileName + ".md", "a")
+
+        writeToFile(f, "## " + ruleService)
+        for rule in sorted(dictRulesByService[ruleService]):
             writeToFile(f, dictRules[rule])
         
         iCount = iCount + 1
