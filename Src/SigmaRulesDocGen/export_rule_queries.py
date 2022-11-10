@@ -8,16 +8,18 @@ import configparser
 from os.path import exists
 import math
 import yaml
+import pprint
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--debug", "-d", help="For debugging", action=argparse.BooleanOptionalAction)
 parser.add_argument("--config", help="Config Filename", default="config.ini")
 parser.add_argument("--verbose", help="Verbose output.", action=argparse.BooleanOptionalAction, default=False)
-parser.add_argument("--perpage", help="Items Per Page.", default=15)
+parser.add_argument("--perpage", help="Items Per Page.", default=100)
 parser.add_argument("--startpage", help="Items Per Page.", default=1)
 parser.add_argument("--endpage", help="Items Per Page.", default=10000)
 parser.add_argument("--function", help="[markdown|ids] Type of operation/function to do", default="markdown")
+parser.add_argument("--delete", help="Deletes existing markdown files.", action=argparse.BooleanOptionalAction, default=True)
 
 args = parser.parse_args()
 configFromArg = vars(args)
@@ -136,28 +138,121 @@ def getRulesPageFromApi(iArgPage, iArgPerPage, iArgMax):
     r = requests.get(sUrl, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
     return r
 
+def safeGetKeyFromDict(strKey, objDict, strDefault):
+    if str(strKey) in objDict:
+        ret = objDict[strKey]
+        return ret
+    else:
+        return strDefault
+
 def generateMarkDown(sArgRules):
+    global dictCounts
+    
+    import os
+
+    dictRules = {}
+    
+    dictRulesByCategory = {}
+    dictRulesByProduct = {}
+    dictRulesByService = {}
+
+    # logsource:
+    #   category: application
+    #   product: python
+
+    # strFileToWriteMarkdownTo = "out.md"
+
+    # if exists(strFileToWriteMarkdownTo):
+    #     import os
+    #     os.remove(strFileToWriteMarkdownTo)
+
+    # open file for editing
+    # f = open(strFileToWriteMarkdownTo, "a")
+
     sConcat = ""
     for rule in sArgRules:
-        print("")
-        print("### " + sArgRules[rule]["title"])
-        print("")
+        sFinalWriteRuleAsMarkDown = ""
 
-        print("Config | Value")
-        print("---- | ----")
+        if "source" in sArgRules[rule]:
+            dct = yaml.safe_load(sArgRules[rule]["source"])
+            oLogSource = dct["logsource"]
+            strCategory =   safeGetKeyFromDict("category", oLogSource, "No Category")
+            strProduct =    safeGetKeyFromDict("product", oLogSource, "No Product")
+            strService =    safeGetKeyFromDict("service", oLogSource, "No Service")
+
+        dictCounts["category"][strCategory] = rule
+        dictCounts["product"][strProduct] = rule
+        dictCounts["service"][strService] = rule
+
+        # print("")
+        # print("### " + sArgRules[rule]["title"])
+        # print("")
+        strRuleTitle = sArgRules[rule]["title"]
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "" + "\n"
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "### " + strRuleTitle + "\n"
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "" + "\n"
+
+        # print("Config | Value")
+        # print("---- | ----")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Config | Value" + "\n"
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "---- | ----" + "\n"
+
+        # Category
+        # print("Category | " + str(strCategory) + "")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Category | " + str(strCategory) + "" + "\n"
+
+        # Product
+        # print("Product | " + str(strProduct) + "")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Product | " + str(strProduct) + "" + "\n"
+
+        # Service
+        # print("Service | " + str(strService) + "")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Service | " + str(strService) + "" + "\n"
 
         # Level
-        print("Level | `" + str(sArgRules[rule]["level"]) + "`")
+        # print("Level | `" + str(sArgRules[rule]["level"]) + "`")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Level | `" + str(sArgRules[rule]["level"]) + "`" + "\n"
 
         # Query
-        print("Search Query | `" + str(sArgRules[rule]["query"]) + "`")
-
-        # Source
-        # print("Source Yaml | `" + str(sArgRules[rule]["source"]) + "`")
-        dct = yaml.safe_load(sArgRules[rule]["source"])
+        # print("Search Query | `" + str(sArgRules[rule]["query"]) + "`")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Search Query | `" + str(sArgRules[rule]["query"]) + "`" + "\n"
+        
         sConcat = "- Description: " + dct["description"]
         sConcat = sConcat + "<br>" + "- Author: " + dct["author"]
-        print("Source Yaml | " + str(sConcat) + "")
+        sConcat = sConcat + "<br>" + "- Log Source: " + str(dct["logsource"])
+        # print("Source Yaml | " + str(sConcat) + "")
+        sFinalWriteRuleAsMarkDown = sFinalWriteRuleAsMarkDown + "Source Yaml | " + str(sConcat) + "" + "\n"
+    
+        dictRules[strRuleTitle] = sFinalWriteRuleAsMarkDown
+
+        # =====================================================================
+        # Categories
+        bCategoryExists = False
+        if strCategory in dictRulesByCategory:
+            bCategoryExists = True
+        
+        if bCategoryExists == False:
+            dictRulesByCategory[strCategory] = {}
+        
+        dictRulesByCategory[strCategory][strRuleTitle] = strRuleTitle
+        # =====================================================================
+    
+    # ===================================================================================
+    # Categories
+    iCount = 1
+    createDirIfNotExists("categories/")
+    # write per category
+    for ruleCategory in sorted(dictRulesByCategory):
+        f = open("categories/" + str(iCount) + " " + ruleCategory + ".md", "a")
+
+        writeToFile(f, "## " + ruleCategory)
+        # writeToFile(f, dictRulesByCategory[ruleCategory])
+        for rule in sorted(dictRulesByCategory[ruleCategory]):
+            writeToFile(f, dictRules[rule])
+        
+        iCount = iCount + 1
+        f.close()
+    # ===================================================================================
 
 def doExportRuleQueries():
     list = []
@@ -226,13 +321,81 @@ def generateRuleIds(sArgRules):
     for rule in sArgRules:
         print(rule)
 
+def devCategorizeRules():
+    print()
+    # 1. Generate a lookup of Rule name translated to
+    #   - directory path
+    #   - original filename
+    # 2. Use this to cross reference for categorization
+    # 
+    # Alternatively
+    # use...
+    # logsource:
+    #   category: application
+    #   product: django
+    # 
+
+def writeToFile(handle, text):
+    handle.write(text + "\n")
+
+def deleteExistingMarkDownFiles():
+    if configFromArg['delete']:
+        print(alertText + "DELETING existing .md markdown files." + defText)
+        # oFiles = glob.glob("*.md")
+        oFiles = glob.glob("." + "/**/*.md", recursive=True)
+
+        lFilesToIgnoreDeleteion = ["./readme.md"]
+
+        import os
+
+        for file in oFiles:
+            sFileLower = file.lower()
+            if sFileLower in lFilesToIgnoreDeleteion:
+                print("Skipping deletion: " + successText + file + defText)
+            else:
+                print(alertText + "Deleting: " + errorText + file + defText)
+                os.remove(file)
+
+def createDirIfNotExists(strArgDir):
+    import os
+
+    if exists(strArgDir):
+        print(successText + "dir " +defText + strArgDir + successText + " exists" + defText)
+    else:
+        print(alertText + "Creating missing directory: " + defText + strArgDir)
+        os.mkdir(strArgDir)
+
+dictCounts = {}
+dictCounts["category"]  = {}
+dictCounts["product"]   = {}
+dictCounts["service"]   = {}
+
 if configFromArg['function'] == "markdown":
+    deleteExistingMarkDownFiles()
+
     rules = doExportRuleQueries()
     # json_object = json.dumps(rules, indent = 4)
     # print(json_object)
     generateMarkDown(rules)
+
+    print("")
+    print("Categories: " + str(len(dictCounts["category"])))
+    print("Products: " + str(len(dictCounts["product"])))
+    print("Services: " + str(len(dictCounts["service"])))
+    
+    for type in dictCounts:
+        print
+
 elif configFromArg['function'] == "ids":
     rules = doExportRuleQueries()
     generateRuleIds(rules)
+elif configFromArg['function'] == "dev_dir_list":
+    devCategorizeRules()
+    # f = open("demofile2.txt", "a")
+    # writeToFile(f, "testing 123")
+    # f.close()
+    # exit()
+elif configFromArg['function'] == "dev_delete":
+    deleteExistingMarkDownFiles()
 else:
     print(errorText + "ERROR! Invalid function." + defText)
