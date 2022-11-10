@@ -10,3 +10,5 @@ Src/SigmaRulesDocGen/auth.ini
 Src/SigmaRulesDocGen/rules copy/*
 Src/SigmaRulesDocGen/out.md
 Src/SigmaRulesDocGen/ids.txt
+Src/SigmaRulesDocGen/products/*.md
+Src/SigmaRulesDocGen/categories/*.md
