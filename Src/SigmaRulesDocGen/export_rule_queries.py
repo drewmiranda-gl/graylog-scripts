@@ -290,7 +290,7 @@ def generateMarkDown(sArgRules):
         if strThingForFileName == "No Category":
             strThingForFileName = "_" + strThingForFileName
         strFileName = strThingForFileName
-        f = open("categories/" + strFileName + ".md", "a")
+        f = open("export/categories/" + strFileName + ".md", "a")
 
         writeToFile(f, "## " + ruleCategory)
         for rule in sorted(dictRulesByCategory[ruleCategory]):
@@ -310,7 +310,7 @@ def generateMarkDown(sArgRules):
         if strThingForFileName == "No Product":
             strThingForFileName = "_" + strThingForFileName
         strFileName = strThingForFileName
-        f = open("products/" + strFileName + ".md", "a")
+        f = open("export/products/" + strFileName + ".md", "a")
 
         writeToFile(f, "## " + ruleProduct)
         for rule in sorted(dictRulesByProduct[ruleProduct]):
@@ -330,7 +330,7 @@ def generateMarkDown(sArgRules):
         if strThingForFileName == "No Service":
             strThingForFileName = "_" + strThingForFileName
         strFileName = strThingForFileName
-        f = open("services/" + strFileName + ".md", "a")
+        f = open("export/services/" + strFileName + ".md", "a")
 
         writeToFile(f, "## " + ruleService)
         for rule in sorted(dictRulesByService[ruleService]):
