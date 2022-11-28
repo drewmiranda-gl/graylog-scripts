@@ -278,10 +278,12 @@ def generateMarkDown(sArgRules):
         dictRulesByService[strService][strRuleTitle] = strRuleTitle
         # =====================================================================
     
+    createDirIfNotExists("export/")
+
     # ===================================================================================
     # Categories
     iCount = 1
-    createDirIfNotExists("categories/")
+    createDirIfNotExists("export/categories/")
     # write per category
     for ruleCategory in sorted(dictRulesByCategory):
         strThingForFileName = ruleCategory
@@ -301,7 +303,7 @@ def generateMarkDown(sArgRules):
     # ===================================================================================
     # Products
     iCount = 1
-    createDirIfNotExists("products/")
+    createDirIfNotExists("export/products/")
     # write per category
     for ruleProduct in sorted(dictRulesByProduct):
         strThingForFileName = ruleProduct
@@ -321,7 +323,7 @@ def generateMarkDown(sArgRules):
     # ===================================================================================
     # Services
     iCount = 1
-    createDirIfNotExists("services/")
+    createDirIfNotExists("export/services/")
     # write per category
     for ruleService in sorted(dictRulesByService):
         strThingForFileName = ruleService
