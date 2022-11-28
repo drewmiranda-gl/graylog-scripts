@@ -13,3 +13,4 @@ Src/SigmaRulesDocGen/ids.txt
 Src/SigmaRulesDocGen/products/*.md
 Src/SigmaRulesDocGen/categories/*.md
 Src/SigmaRulesDocGen/services/*.md
+Src/SigmaRulesDocGen/export/*
