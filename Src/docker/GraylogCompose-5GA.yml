@@ -1,0 +1,86 @@
+version: "3.8"
+services:
+  mongodb:
+    image: "mongo:6.0"
+    container_name: graydock-mongo
+    ports:
+      - "27021:27017"
+    deploy:
+      resources:
+        limits:
+          memory: "256m"
+    volumes:
+      - "./storage/graydock-mongo/mongodb:/data/db"
+    restart: unless-stopped
+
+  opensearch:
+    image: "opensearchproject/opensearch:2"
+    container_name: graydock-opensearch
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms2g -Xmx2g -Dlog4j2.formatMsgNoLookups=true"
+      bootstrap.memory_lock: "true"
+      discovery.type: "single-node"
+      http.host: "0.0.0.0"
+      action.auto_create_index: "false"
+      DISABLE_INSTALL_DEMO_CONFIG: "true" # disables execution of install_demo_configuration.sh bundled with security plugin, which installs demo certificates and security configurations to OpenSearch
+      DISABLE_SECURITY_PLUGIN: "true" # disables security plugin entirely in OpenSearch by setting plugins.security.
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - "./storage/graydock-opensearch/opensearchdata:/usr/share/opensearch/data"
+    restart: unless-stopped
+
+  graylog:
+    image: "graylog/graylog-enterprise:5.0.0"
+    container_name: graydock-graylog
+    depends_on:
+      opensearch:
+        condition: "service_started"
+      mongodb:
+        condition: "service_started"
+    entrypoint: "/usr/bin/tini -- wait-for-it graydock-opensearch:9200 --  /docker-entrypoint.sh"
+    environment:
+      GRAYLOG_IS_MASTER: true
+      GRAYLOG_PASSWORD_SECRET: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      # password is admin
+      GRAYLOG_ROOT_PASSWORD_SHA2: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      GRAYLOG_HTTP_BIND_ADDRESS: "0.0.0.0:9000"
+      GRAYLOG_HTTP_EXTERNAL_URI: "http://localhost:9000/"
+      GRAYLOG_ELASTICSEARCH_HOSTS: "http://graydock-opensearch:9200"
+      GRAYLOG_MONGODB_URI: "mongodb://graydock-mongo:27017/graylog"
+      # To make reporting (headless_shell) work inside a Docker container
+      GRAYLOG_REPORT_DISABLE_SANDBOX: "true"
+      GRAYLOG_SERVER_JAVA_OPTS: "-Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true -Djdk.tls.acknowledgeCloseNotify=true -XX:+UnlockExperimentalVMOptions -XX:NewRatio=1 -XX:MaxMetaspaceSize=256m -server -XX:+ResizeTLAB -XX:-OmitStackTraceInFastThrow"
+      # GRAYLOG_TRUSTED_PROXIES: 10.10.10.0/24
+    ports:
+    - "5044:5044/tcp"   # Beats
+    - "5140:5140/tcp"   # Syslog TCP
+    - "5140:5140/udp"   # Syslog UDP
+    - "5555:5555/tcp"   # RAW TCP
+    - "5555:5555/udp"   # RAW TCP
+    - "9000:9000/tcp"   # Server API
+    - "12201:12201/tcp" # GELF TCP
+    - "12201:12201/udp" # GELF UDP
+    #- "10000:10000/tcp" # Custom TCP port
+    #- "10000:10000/udp" # Custom UDP port
+    - "13301:13301/tcp" # Forwarder data
+    - "13302:13302/tcp" # Forwarder config
+    volumes:
+      - "./storage/graydock-graylog/graylog_journal:/usr/share/graylog/data/journal"
+      - "./storage/graydock-graylog/contentpacks:/usr/share/graylog/data/contentpacks"
+      # - "./storage/graydock-graylog/illuminate:/usr/share/graylog/data/illuminate"
+      - "./maxmind/GeoLite2-City.mmdb:/etc/graylog/server/GeoLite2-City.mmdb"
+      - "./maxmind/GeoLite2-ASN.mmdb:/etc/graylog/server/GeoLite2-ASN.mmdb"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
