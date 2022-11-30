@@ -14,3 +14,4 @@ Src/SigmaRulesDocGen/products/*.md
 Src/SigmaRulesDocGen/categories/*.md
 Src/SigmaRulesDocGen/services/*.md
 Src/SigmaRulesDocGen/export/*
+Src/docker/maxmind/*.mmdb
