@@ -17,6 +17,7 @@ import argparse
 import re
 import sqlite3
 from os.path import exists
+import os
 
 # defaults
 parser = argparse.ArgumentParser(description="Just an example",
@@ -199,10 +200,16 @@ def writeToFile(handle, text):
     handle.write(text + "\n")
 
 rs = queryGraylog(["aq_co2", "aq_temp_f"])
+if len(rs) > 0:
+    sFileTemp = configFromArg['out'] + ".tmp"
+    if exists(sFileTemp):
+        os.remove(sFileTemp)
 
+    f = open(sFileTemp, "a")
 
-f = open(configFromArg['out'], "a")
+    for metric in rs:
+        sLineToWrite = metric + "{} " + str(rs[metric])
+        writeToFile(f, sLineToWrite)
 
-for metric in rs:
-    sLineToWrite = metric + "{} " + str(rs[metric])
-    writeToFile(f, sLineToWrite)
+    if exists(sFileTemp):
+        os.rename(sFileTemp,configFromArg['out'])
