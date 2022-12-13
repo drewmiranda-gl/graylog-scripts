@@ -48,6 +48,7 @@ services:
         condition: "service_started"
     entrypoint: "/usr/bin/tini -- wait-for-it graydock-opensearch:9200 --  /docker-entrypoint.sh"
     environment:
+      # TZ: "America/Chicago"
       GRAYLOG_IS_MASTER: true
       GRAYLOG_PASSWORD_SECRET: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
       # password is admin
@@ -60,6 +61,7 @@ services:
       GRAYLOG_REPORT_DISABLE_SANDBOX: "true"
       GRAYLOG_SERVER_JAVA_OPTS: "-Xms1g -Xmx1g -Dlog4j2.formatMsgNoLookups=true -Djdk.tls.acknowledgeCloseNotify=true -XX:+UnlockExperimentalVMOptions -XX:NewRatio=1 -XX:MaxMetaspaceSize=256m -server -XX:+ResizeTLAB -XX:-OmitStackTraceInFastThrow"
       # GRAYLOG_TRUSTED_PROXIES: 10.10.10.0/24
+      GRAYLOG_ROOT_TIMEZONE: America/Chicago
     ports:
     - "5044:5044/tcp"   # Beats
     - "5140:5140/tcp"   # Syslog TCP
