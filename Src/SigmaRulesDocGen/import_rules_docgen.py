@@ -109,6 +109,8 @@ listSigmaRulesToImport = []
 gIntSuccess = 0
 gIntFailure = 0
 gIntTotalWebReqs = 0
+gIntIncrementWebReqs = 0
+iTotalProcessed = 0
 
 def doBuildSigmaImportList(argFile):
     listSigmaRulesToImport.append(argFile)
@@ -116,6 +118,7 @@ def doBuildSigmaImportList(argFile):
 def doImportSigmaRulesUsingList(argList, argListItemCount):
     global gIntSuccess
     global gIntFailure
+    global iTotalProcessed
 
     intListItemCount = len(argList)
     print(strIndentOne + "Importing " + successText + str(intListItemCount) + defText + " sigma rules...")
@@ -159,7 +162,6 @@ def doImportSigmaRulesUsingList(argList, argListItemCount):
             # headers
             sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
 
-            iTotalProcessed = 0
             for fileName in argList:
                 iTotalProcessed = iTotalProcessed + 1
                 print("Uploading file: " + fileName + defText + " (" + str(iTotalProcessed) + " of " + str(argListItemCount) + ")")
@@ -195,6 +197,7 @@ def doImportSigmaRulesUsingList(argList, argListItemCount):
 
 def doSplitListByMaxAllowed(argList):
     global gIntTotalWebReqs
+    global gIntIncrementWebReqs
 
     iBatchCount = 1
     iItemCount = 0
@@ -251,8 +254,9 @@ def doSplitListByMaxAllowed(argList):
             # print(intListCount)
             # print(dictLists[intListCount])
             if configFromArg['method'] == "api":
-                print("\n"+ alertText + "Web Request " + str(intListCount) + " of " + str(intTotalWebReqsNeededForImport) + defText)
+                print("\n"+ alertText + "Web Request " + str(gIntIncrementWebReqs) + " of " + str(intTotalWebReqsNeededForImport) + defText)
             doImportSigmaRulesUsingList(dictLists[intListCount], iListCount)
+            gIntIncrementWebReqs += 1
     else:
         doImportSigmaRulesUsingList(argList, iListCount)
 
