@@ -214,3 +214,56 @@ Categories: 39
 Products: 21
 Services: 56
 ```
+
+# gen_sigma_fields.py
+
+Used to gather information about sigma rules. Such as:
+
+* Which fields are used in sigma rules
+* Which fields are mapped via GIM (and which are not)
+* What is the count of rules that use fields not mapped by GIM (and count of rules that do)
+* What is the list of GIM incompatible fields
+* What is the count of rules that do not specify and fields for the search query (and instead rely on full text search queries and a number of `OR` statements)
+
+## Prerequisites
+
+* Local copy of this repo (e.g. Download as Zip, or via git clone)
+* Local copy of [SigmaHQ sigma](https://github.com/SigmaHQ/sigma) repo (specifically the `rules` directory)
+* Python 3 (tested on 3.9.13)
+* A copy of `core_sigma_field_map.csv` from an Illuminate Bundle (`illuminate/core/data/core_sigma_field_map.csv`) placed in the same directory as this python script.
+## Instructions
+
+execute
+
+* `python3 gen_sigma_fields.py`
+
+All output is output to console.
+
+## Command Line Arguments
+
+```
+  -h, --help            show this help message and exit
+  --debug, --no-debug, -d
+                        For debugging (default: None)
+  --dir DIR             Directory of sigma rules (default: rules)
+  --csv CSV             Illuminate core sigma field map csv file. (default: core_sigma_field_map.csv)
+  --verbose, --no-verbose
+                        Verbose output. (default: False)
+```
+
+## Sample Output
+
+```
+Rules without fields in query: 48 of 2574 (2526 rules do have fields in query.)
+["rules/web/web_jndi_exploit.yml", "rules/web/web_apache_threading_error.yml", "...", "..."]
+
+GIM Compatible Fields (56 fields):
+["TargetFilename", "Image", "CommandLine", "...", "..."]
+
+GIM Incompatible Fields (Missing from illuminate csv lookup mapping) (405 fields):
+["ImageName", "c-uri", "r-dns", "c-useragent", "cs-method", "...", "..."]
+
+223 (of 2574) sigma rules have fields that are not mapped by Graylog Illuminate via core_sigma_field_map.csv
+This means these rules cannot be effectively used with Graylog's Sigma Rules feature.
+2351 (of 2574) sigma rules have fields that are mapped.
+```
