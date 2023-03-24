@@ -274,4 +274,5 @@ if configFromArg['verbose']:
 
 print("Found " + successText + str(len(listSigmaRulesToImport)) + defText + " sigma rules.")
 
+print("Counting field names for all sigma rules... (This may take a minute)")
 doCountFields(listSigmaRulesToImport)
