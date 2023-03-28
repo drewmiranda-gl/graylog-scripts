@@ -16,3 +16,4 @@ Src/SigmaRulesDocGen/services/*.md
 Src/SigmaRulesDocGen/export/*
 Src/docker/maxmind/*.mmdb
 Src/GraylogQuery-to-Prometheus-Export/auth.ini
+Src/SigmaRulesDocGen/sigma_fields.csv
