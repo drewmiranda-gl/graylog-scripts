@@ -267,3 +267,39 @@ GIM Incompatible Fields (Missing from illuminate csv lookup mapping) (405 fields
 This means these rules cannot be effectively used with Graylog's Sigma Rules feature.
 2351 (of 2574) sigma rules have fields that are mapped.
 ```
+
+# sigma_fields_to_csv.py
+
+Used to export fields from sigma rule files into a 2d CSV.
+
+Fields exported:
+
+- file
+- title
+- category
+- product
+- tags
+- status
+- author
+- date
+- modified
+
+## Prerequisites
+
+* Local copy of this repo (e.g. Download as Zip, or via git clone)
+* Local copy of [SigmaHQ sigma](https://github.com/SigmaHQ/sigma) repo (specifically the `rules` directory)
+* Python 3 (tested on 3.9.13)
+
+## Instructions
+
+execute
+
+* `python3 sigma_fields_to_csv.py`
+
+output is saved to `sigma_fields.csv`
+
+## Command Line Arguments
+
+```
+  --dir DIR             Directory of sigma rules (default: rules)
+```
