@@ -19,8 +19,9 @@
 # 5. create service
 # 
 
-import tarfile, argparse, shutil, os
+import argparse, shutil, os, requests, time, json
 from os.path import exists
+from requests.auth import HTTPBasicAuth
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -41,6 +42,34 @@ successText     = "\033[1;32;50m"       # green
 blueText        = "\033[0;34;50m"       # blue
 
 print(defText)
+
+dictGraylogApi = {
+    "https": False,
+    "host": "127.0.0.1",
+    "port": "9000",
+    "user": "admin",
+    "password": "admin"
+}
+
+# ================= BACKOFF START ==============================
+
+# Number of seconds to wait before retrying after a socket error
+iSocketRetryWaitSec = 5
+
+# Maximum number of retries to attempt. script exits if max is reach so be careful!
+iSocketMaxRetries = 300
+
+# How many seconds to add before each retry
+# backoff resets after a successful connection
+iSocketRetryBackOffSec = 10
+
+# maximum allowed retry wait in seconds
+iSocketRetryBackOffMaxSec = 300
+
+# how many retries before the backoff time is added before each retry
+iSocketRetryBackOffGraceCount = 24
+
+# ================= BACKOFF END ================================
 
 def deleteIfExists(argPath, bIsFolder):
     if bIsFolder == True:
@@ -85,6 +114,139 @@ if whoami.lower() != 'root':
     print(errorText + "ERROR! please execute as root." + defText)
     exit(1)
 
+def graylogApiConfigIsValid():
+    return True
+
+def mergeDict(dictOrig: dict, dictToAdd: dict, allowReplacements: bool):
+    for item in dictToAdd:
+        
+        bSet = True
+        if item in dictOrig:
+            if allowReplacements == False:
+                bSet = False
+        
+        if bSet == True:
+            dictOrig[item] = dictToAdd[item]
+    
+    return dictOrig
+
+def doGraylogApi(argMethod: str, argApiUrl: str, argHeaders: dict, argJson: dict, argFiles: dict, argExpectedReturnCode: int, argReturnJson: bool):
+    if graylogApiConfigIsValid() == True:
+        # build URI
+        sArgBuildUri = ""
+        if dictGraylogApi['https'] == True:
+            sArgBuildUri = "https://"
+        else:
+            sArgBuildUri = "http://"
+
+        sArgHost    = dictGraylogApi['host']
+        sArgPort    = dictGraylogApi['port']
+        sArgUser    = dictGraylogApi['user']
+        sArgPw      = dictGraylogApi['password']
+
+        # print(alertText + "Graylog Server: " + sArgHost + defText + "\n")
+
+        # build server:host and concat with URI
+        sArgBuildUri=sArgBuildUri+sArgHost+":"+sArgPort
+        
+        sUrl = sArgBuildUri + argApiUrl
+
+        # add headers
+        sHeaders = {"Accept":"application/json", "X-Requested-By":"python-ctpk-upl"}
+        sHeaders = mergeDict(sHeaders, argHeaders, True)
+        
+        if argMethod.upper() == "GET":
+            try:
+                r = requests.get(sUrl, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+            except Exception as e:
+                return {
+                    "success": False,
+                    "exception": e
+                }
+        elif argMethod.upper() == "POST":
+            if argFiles == False:
+                try:
+                    r = requests.post(sUrl, json = argJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "exception": e
+                    }
+            else:
+                try:
+                    r = requests.post(sUrl, json = argJson, files=argFiles, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "exception": e
+                    }
+        
+        if r.status_code == argExpectedReturnCode:
+            if argReturnJson:
+                return {
+                    "json": json.loads(r.text),
+                    "status_code": r.status_code,
+                    "success": True
+                }
+            else:
+                return {
+                    "text": r.text,
+                    "status_code": r.status_code,
+                    "success": True
+                }
+        else:
+            return {
+                "status_code": r.status_code,
+                "success": False,
+                "failure_reason": "Return code " + str(r.status_code) + " does not equal expected code of " + str(argExpectedReturnCode),
+                "text": r.text
+            } 
+    else:
+        return {"msg": "api_not_configured"}
+
+def do_wait_until_online():
+    iSocketRetries = 0
+    iSocketInitialRetryBackOff = iSocketRetryWaitSec
+
+    while iSocketRetries < iSocketMaxRetries:
+        if iSocketRetries > 0:
+            print("Retry " + str(iSocketRetries) + " of " + str(iSocketMaxRetries))
+
+        r = doGraylogApi("GET", "/api/", {}, {}, False, 200, True)
+        if 'success' in r:
+            if r['success'] == False:
+                if "exception" in r:
+                    print(errorText)
+                    print(r["exception"])
+                    print(defText)
+
+                    print("Waiting " + str(iSocketInitialRetryBackOff) + "s Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
+                    # sleep for X seconds
+                    time.sleep(iSocketInitialRetryBackOff)
+
+                    # Increment socket retry count
+                    iSocketRetries = iSocketRetries + 1
+
+                    # If the number of retries exceeds the intial backoff retry grace count
+                    #   Don't apply backoff for the first X number of retries in case the error was short lived
+                    if iSocketRetries > iSocketRetryBackOffGraceCount:
+                        # if backoff value is less than max, keep adding backoff value to delay
+                        if iSocketInitialRetryBackOff < iSocketRetryBackOffMaxSec:
+                            iSocketInitialRetryBackOff = iSocketInitialRetryBackOff + iSocketRetryBackOffSec
+
+                        # if backoff value exceeds max, set to max
+                        if iSocketInitialRetryBackOff > iSocketRetryBackOffMaxSec:
+                            iSocketInitialRetryBackOff = iSocketRetryBackOffMaxSec
+
+                    # If socket retries exceeds max, exit script
+                    if iSocketRetries > iSocketMaxRetries:
+                        print("ERROR! To many socket retries")
+                        return False
+
+            elif r['success'] == True:
+                print(successText + "Graylog Cluster is Online" + defText)
+                return True
+    return False
 
 print(alertText + "Stopping " + blueText + "graylog-server" + defText)
 os.system("systemctl stop graylog-server")
@@ -189,4 +351,6 @@ os.system("systemctl enable graylog-server")
 print("Starting service: " + blueText + "graylog-server" + defText)
 os.system("systemctl start graylog-server")
 
+print(alertText + "waiting until graylog-server is online..." + defText)
+do_wait_until_online()
 print(successText + "Completed." + defText)
