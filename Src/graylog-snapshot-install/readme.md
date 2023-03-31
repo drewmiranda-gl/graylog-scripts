@@ -8,6 +8,8 @@ Its intention is to be used with snapshot builds since official releases can be 
 
 * Python >= 3.9
 * Graylog `.tgz` release
+* [OpenSearch installed](https://github.com/Graylog2/se-poc-docs/blob/main/src/On%20Prem%20POC/installing%20opensearch.md) and running (Graylog will attempt to connect via `http://127.0.0.1:9200`)
+* [MongoDB](https://github.com/Graylog2/se-poc-docs/blob/main/src/On%20Prem%20POC/installing%20mongodb.md) installed and running (Graylog will attempt to connect via `mongodb://localhost/graylog`)
 
 # Instructions
 
