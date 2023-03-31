@@ -85,6 +85,10 @@ if whoami.lower() != 'root':
     print(errorText + "ERROR! please execute as root." + defText)
     exit(1)
 
+
+print(alertText + "Stopping " + blueText + "graylog-server" + defText)
+os.system("systemctl stop graylog-server")
+
 # 1. Extract .tgz and get path
 extracted_path = extract(args.tgz)
 # extracted_path = "./extract/graylog-5.1.0-SNAPSHOT-20230331094000-linux-x64"
