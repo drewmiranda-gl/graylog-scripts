@@ -79,6 +79,12 @@ def move_to_path(argSrc, argDst):
     # print(rsynccmd)
     o = os.system(rsynccmd)
 
+# verify running as root
+whoami = os.popen('whoami').read().strip()
+if whoami.lower() != 'root':
+    print(errorText + "ERROR! please execute as root." + defText)
+    exit(1)
+
 # 1. Extract .tgz and get path
 extracted_path = extract(args.tgz)
 # extracted_path = "./extract/graylog-5.1.0-SNAPSHOT-20230331094000-linux-x64"
@@ -168,6 +174,10 @@ os.system("sudo chown -R graylog:graylog /var/log/graylog-server")
 
 print("    " + blueText + "/var/lib/graylog-server" + defText)
 os.system("sudo chown -R graylog:graylog /var/lib/graylog-server")
+
+# set timezone to UTC
+print("Setting timezone: " + blueText + "UTC" + defText)
+os.system("timedatectl set-timezone UTC")
 
 # enable and start
 print("Enabling service: " + blueText + "graylog-server" + defText)
