@@ -169,4 +169,10 @@ os.system("sudo chown -R graylog:graylog /var/log/graylog-server")
 print("    " + blueText + "/var/lib/graylog-server" + defText)
 os.system("sudo chown -R graylog:graylog /var/lib/graylog-server")
 
+# enable and start
+print("Enabling service: " + blueText + "graylog-server" + defText)
+os.system("systemctl enable graylog-server")
+print("Starting service: " + blueText + "graylog-server" + defText)
+os.system("systemctl start graylog-server")
+
 print(successText + "Completed." + defText)
