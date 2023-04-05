@@ -277,12 +277,19 @@ def buildGraylogSearchJson(argQuery: str, timerange: int, streams: list, aggType
     oPayload["queries"] = [oQuery]
     return oPayload
 
-def formatGraylogQueryOutput(argResult: dict, searchType: str):
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+
+def formatGraylogQueryOutput(argResult: dict, searchType: str, addValues: dict):
     if not "results" in argResult:
         return {"error": "key 'results' not found"}
     
-    # rs = []
-    kv = {}
+    rs = []
+    # kv = {}
 
     # print(json.dumps(argResult['results'], indent = 4))
     for result in argResult['results']:
@@ -290,15 +297,48 @@ def formatGraylogQueryOutput(argResult: dict, searchType: str):
         for search_type in argResult['results'][result]['search_types']:
             for row in argResult['results'][result]['search_types'][search_type]['rows']:
                 if row['source'] == "leaf":
-                    # kv = {}
+                    kv = {}
                     use_key = row['key'][0]
                     use_value = row['values'][0]['value']
-                    kv[use_key] = use_value
-                    # kv[use_key] = ''
-                    # rs.append(kv)
-    
-    return kv
+                    # kv[use_key] = use_value
 
+                    if isinstance(use_value, float):
+                        valuename = "value_float"
+                    elif isinstance(use_value, int):
+                        valuename = "value_int"
+                    else:
+                        valuename = "value"
+                    
+                    kv = {
+                        "key": use_key,
+                        valuename: use_value
+                    }
+                    final_dict = mergeDict(kv, addValues, True)
+
+                    rs.append(final_dict)
+    
+    return rs
+
+def sendMessageToGraylogGelfHttp(HOST: str, PORT: int, payload: list):
+
+    sUrl = "http://" + str(HOST) + ":" + str(PORT) + "/gelf"
+
+    sHeaders = {
+        "Content-Type": "application/json",
+        "User-Agent": "python"
+    }
+
+    # print(json.dumps(payload, indent=4))
+    r = requests.post(sUrl, data = payload, headers=sHeaders)
+    print("Graylog Input:" + str(r.status_code))
+
+def logBackToGraylog(HOST: str, PORT: int, messages: list):
+
+    pyaload_concat = ""
+    for message in messages:
+        pyaload_concat = pyaload_concat + json.dumps(message) + "\n"
+
+    sendMessageToGraylogGelfHttp(HOST, PORT, pyaload_concat)
 
 def queryGraylog(argQuery: dict):
     r = doGraylogApi("POST", "/api/views/search", {}, argQuery, False, 201, True)
@@ -327,24 +367,33 @@ def queryGraylog(argQuery: dict):
 
     return rr['json']
 
-graylog_query = "_exists_:ha_event_new_state_double AND ha_sensor_type:current_consumption"
-graylog_timerange = 300
-graylog_streams_list = ["6317aaae5c2b2b19d63ad77a"]
-graylog_aggregation_type = "latest"
-graylog_aggregation_filed = "ha_event_new_state_double"
-graylog_group_by = "ha_entity"
-j = buildGraylogSearchJson(
-    graylog_query,
-    graylog_timerange,
-    graylog_streams_list,
-    graylog_aggregation_type,
-    graylog_aggregation_filed,
-    graylog_group_by
-    )
+graylog_host = "ubu4310.drew.local"
+graylog_port = 12202
 
-r = queryGraylog(j)
-f = formatGraylogQueryOutput(r, "aggregation")
-# logBackToGraylog()
+queries_list = [
+    {
+        "query"             : "_exists_:ha_event_new_state_double AND ha_sensor_type:current_consumption",
+        "timerange"         : 300,
+        "streams"           : ["6317aaae5c2b2b19d63ad77a"],
+        "aggregation_field" : "ha_event_new_state_double",
+        "aggregation_type"  : "latest",
+        "group_gy"          : "ha_entity"
+    }
+]
 
-t = json.dumps(f, indent=4)
-print(t)
+for query in queries_list:
+    j = buildGraylogSearchJson(
+        query['query'],
+        query['timerange'],
+        query['streams'],
+        query['aggregation_type'],
+        query['aggregation_field'],
+        query['group_gy'],
+        )
+
+    r = queryGraylog(j)
+    f = formatGraylogQueryOutput(r, "aggregation", {"source": "query-and-log-agg", "message": "-", "measurement": "W", "item": "energy_usage"})
+    logBackToGraylog(graylog_host, graylog_port, f)
+
+# t = json.dumps(f, indent=4)
+# print(t)
