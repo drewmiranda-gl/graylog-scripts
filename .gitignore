@@ -18,3 +18,4 @@ Src/docker/maxmind/*.mmdb
 Src/GraylogQuery-to-Prometheus-Export/auth.ini
 Src/SigmaRulesDocGen/sigma_fields.csv
 Src/query-and-log-agg/auth.ini
+Src/Graylog-Api-Automation-Tools/config-dev.yml

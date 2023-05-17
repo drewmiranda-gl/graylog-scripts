@@ -1,0 +1,8 @@
+graylog_api:
+    https: False
+    host: "127.0.0.1"
+    port: "9000"
+    graylog_api_token: ""
+    # username/password will override a graylog token. Leave username/password empty to use token only.
+    username: ""
+    password: ""
