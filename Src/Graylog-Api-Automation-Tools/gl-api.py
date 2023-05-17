@@ -8,6 +8,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 list_actions = []
 list_actions.append("list-streams")
 list_actions.append("share-all-stream")
+list_actions.append("share-all-dashboards")
 list_actions.sort()
 
 # defaults
@@ -289,8 +290,17 @@ def graylog_api_get_streams_list(dictGraylogApi: dict):
 
     return False
 
-def graylog_api_share_stream(dictGraylogApi: dict, stream_id: str, share_with_grn: str, share_level: str):
-    api_url = "/api/authz/shares/entities/grn::::stream:" + str(stream_id)
+def graylog_api_get_dashboard_list(dictGraylogApi: dict):
+    r = doGraylogApi(dictGraylogApi, "GET", "/api/dashboards", {}, {}, False, False, 200, True)
+    if r['success'] == True:
+        if 'json' in r:
+            if 'views' in r['json']:
+                return r['json']['views']
+
+    return False
+
+def graylog_api_share(dictGraylogApi: dict, item_type: str, item_id: str, share_with_grn: str, share_level: str):
+    api_url = "/api/authz/shares/entities/grn::::" + str(item_type) + ":" + str(item_id)
     json_payload = {
         "selected_grantee_capabilities":{
             share_with_grn:share_level
@@ -305,11 +315,24 @@ def bulk_graylog_api_share_stream(streams_list: dict, dictGraylogApi: dict, shar
         exit(1)
     
     for stream in streams_list:
-        r = graylog_api_share_stream(dictGraylogApi, stream['id'], share_with_grn, share_level)
+        r = graylog_api_share(dictGraylogApi, "stream", stream['id'], share_with_grn, share_level)
         if r['success'] == True:
             print(successText + "Stream " + blueText + stream['title'] + successText + " shared successfully.")
         else:
             print(errorText + "Stream " + blueText + stream['title'] + errorText + " failed to share.")
+
+def bulk_graylog_api_share_dashboard(dashboard_list: dict, dictGraylogApi: dict, share_with_grn: str, share_level: str):
+    if not dashboard_list:
+        print(errorText + "ERROR! Dashboard list is empty" + defText)
+        exit(1)
+    
+    for dashboard in dashboard_list:
+        r = graylog_api_share(dictGraylogApi, "dashboard", dashboard['id'], share_with_grn, share_level)
+        if r['success'] == True:
+            print(successText + "Dashboard " + blueText + dashboard['title'] + successText + " shared successfully.")
+        else:
+            print(errorText + "Dashboard " + blueText + dashboard['title'] + errorText + " failed to share.")
+
 
 # ================= FUNCTIONS END ===============================
 
@@ -336,3 +359,8 @@ match args.action:
         share_with_grn = "grn::::team:64653376b55b7e084a8ffe5a"
         share_level = "view"
         bulk_graylog_api_share_stream(streams_list, graylog_api_conf_from_yaml, share_with_grn, share_level)
+    case "share-all-dashboards":
+        dashboard_list = graylog_api_get_dashboard_list(graylog_api_conf_from_yaml)
+        share_with_grn = "grn::::team:64653376b55b7e084a8ffe5a"
+        share_level = "view"
+        bulk_graylog_api_share_dashboard(dashboard_list, graylog_api_conf_from_yaml, share_with_grn, share_level)
