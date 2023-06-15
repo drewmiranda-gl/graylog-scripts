@@ -9,18 +9,34 @@ list_actions = []
 list_actions.append("list-streams")
 list_actions.append("share-all-stream")
 list_actions.append("share-all-dashboards")
+list_actions.append("create-input-profile")
+list_actions.append("create-forwarder-input")
 list_actions.sort()
+
+list_input_type = []
+list_input_type.append("syslog_tcp")
+list_input_type.append("syslog_udp")
+list_input_type.append("gelf_tcp")
+list_input_type.append("gelf_udp")
+list_input_type.append("beats")
+list_input_type.sort()
 
 # defaults
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--debug", "-d", help="For debugging", action=argparse.BooleanOptionalAction)
+parser.add_argument("--verbose", help="For debugging", action=argparse.BooleanOptionalAction)
 parser.add_argument("--config-file", '-c', help='Config file to use. Defaults to config.yml', default="config.yml", type=str, required=False)
 parser.add_argument("--action", help='Action to perform', type=str, choices=list_actions, required=True)
 parser.add_argument("--bulk-file", help='file to use for bulk actions', default="bulk.csv", type=str, required=False)
+parser.add_argument("--title", help='title attribute', default="", type=str, required=False)
+parser.add_argument("--description", help='description attribute', default="", type=str, required=False)
+parser.add_argument("--input-type", help='Input Type', type=str, default="", choices=list_input_type, required=False)
+parser.add_argument("--input-types", help='Comma Separated list of input types. Must be valid choices from --input-type. Supersedes --input-type.', type=str, default="", required=False)
+parser.add_argument("--input-port", help='Input Port Number', default=0, type=int, required=False)
+parser.add_argument("--input-profile-id", help='Forwarder ID. Can also use create (creates new input profile) or latest (uses most recently created input profile).', default="", type=str, required=False)
 
 args = parser.parse_args()
-configFromArg = vars(args)
 
 defText = "\033[0;30;50m"
 alertText = "\033[1;33;50m"
@@ -333,6 +349,312 @@ def bulk_graylog_api_share_dashboard(dashboard_list: dict, dictGraylogApi: dict,
         else:
             print(errorText + "Dashboard " + blueText + dashboard['title'] + errorText + " failed to share.")
 
+def create_input_profile(dictGraylogApi: dict, input_profile_title: str, input_profile_description: str):
+    if len(input_profile_title) == 0:
+        print(errorText + "ERROR! Title cannot be empty. Use --title" + defText)
+        exit(1)
+
+    api_url = "/api/plugins/org.graylog.plugins.forwarder/forwarder/profiles"
+    json_payload = {
+        "title": input_profile_title,
+        "description": input_profile_description
+    }
+    r = doGraylogApi(dictGraylogApi, "POST", api_url, {}, json_payload, False, False, 200, True)
+    if r['success'] == True:
+        print(successText + "Input Profile " + blueText + input_profile_title + " " + successText + "successfully created." + defText)
+        return r['json']['id']
+    else:
+        print(errorText + "Failed to create Input Profile " + blueText + input_profile_title + defText)
+        return ""
+
+def get_input_conf_json(argInputType: str, argPort: int, is_global: bool):
+    port_to_use_for_input = argPort
+    d = {}
+
+    if argInputType.lower() == "syslog_tcp":
+        if argPort == 0:
+            port_to_use_for_input = 514
+
+        d = {
+            "title": "Syslog TCP",
+            "type": "org.graylog2.inputs.syslog.tcp.SyslogTCPInput",
+            "configuration": {
+                "bind_address": "0.0.0.0",
+                "port": port_to_use_for_input,
+                "recv_buffer_size": 1048576,
+                "number_worker_threads": 4,
+                "tls_cert_file": "",
+                "tls_key_file": "",
+                "tls_enable": False,
+                "tls_key_password": "",
+                "tls_client_auth": "disabled",
+                "tls_client_auth_cert_file": "",
+                "tcp_keepalive": False,
+                "use_null_delimiter": False,
+                "max_message_size": 2097152,
+                "override_source": None,
+                "charset_name": "UTF-8",
+                "force_rdns": False,
+                "allow_override_date": True,
+                "store_full_message": False,
+                "expand_structured_data": False,
+                "timezone": "UTC"
+            }
+        }
+    elif argInputType.lower() == "syslog_udp":
+        if argPort == 0:
+            port_to_use_for_input = 514
+
+        d = {
+            "title": "Syslog UDP",
+            "type": "org.graylog2.inputs.syslog.udp.SyslogUDPInput",
+            "configuration": {
+                "bind_address": "0.0.0.0",
+                "port": port_to_use_for_input,
+                "recv_buffer_size": 262144,
+                "number_worker_threads": 4,
+                "override_source": None,
+                "charset_name": "UTF-8",
+                "force_rdns": False,
+                "allow_override_date": True,
+                "store_full_message": False,
+                "expand_structured_data": False,
+                "timezone": "UTC"
+            }
+        }
+    elif argInputType.lower() == "gelf_tcp":
+        if argPort == 0:
+            port_to_use_for_input = 12201
+        
+        d = {
+            "title": "Gelf TCP",
+            "type": "org.graylog2.inputs.gelf.tcp.GELFTCPInput",
+            "configuration": {
+                "bind_address": "0.0.0.0",
+                "port": port_to_use_for_input,
+                "recv_buffer_size": 1048576,
+                "number_worker_threads": 4,
+                "tls_cert_file": "",
+                "tls_key_file": "",
+                "tls_enable": False,
+                "tls_key_password": "",
+                "tls_client_auth": "disabled",
+                "tls_client_auth_cert_file": "",
+                "tcp_keepalive": False,
+                "use_null_delimiter": True,
+                "max_message_size": 2097152,
+                "override_source": None,
+                "charset_name": "UTF-8",
+                "decompress_size_limit": 8388608
+            }
+        }
+    elif argInputType.lower() == "gelf_udp":
+        if argPort == 0:
+            port_to_use_for_input = 12201
+        
+        d = {
+            "title": "Gelf UDP",
+            "type": "org.graylog2.inputs.gelf.udp.GELFUDPInput",
+            "configuration": {
+                "bind_address": "0.0.0.0",
+                "port": port_to_use_for_input,
+                "recv_buffer_size": 262144,
+                "number_worker_threads": 4,
+                "override_source": None,
+                "charset_name": "UTF-8",
+                "decompress_size_limit": 8388608
+            }
+        }
+    elif argInputType.lower() == "beats":
+        if argPort == 0:
+            port_to_use_for_input = 5044
+        
+        d = {
+            "title": "Beats",
+            "type": "org.graylog.plugins.beats.Beats2Input",
+            "configuration": {
+                "bind_address": "0.0.0.0",
+                "port": port_to_use_for_input,
+                "recv_buffer_size": 1048576,
+                "number_worker_threads": 4,
+                "tls_cert_file": "",
+                "tls_key_file": "",
+                "tls_enable": False,
+                "tls_key_password": "",
+                "tls_client_auth": "disabled",
+                "tls_client_auth_cert_file": "",
+                "tcp_keepalive": False,
+                "override_source": None,
+                "charset_name": "UTF-8",
+                "no_beats_prefix": False
+            }
+        }
+
+    if is_global == True:
+        d['global'] = True
+    
+    if len(d):
+        return d
+
+    print(errorText + "ERROR invalid input type specified." + defText)
+    exit(1)
+    return False
+
+def create_forwarder_input(dictGraylogApi: dict, input_profile_id: str, input_type: str, input_port: int):
+    if len(input_profile_id) == 0:
+        print(errorText + "ERROR! forwarder id cannot be empty. Use --forwarder-id" + defText)
+        exit(1)
+    
+    if len(input_type) == 0:
+        print(errorText + "ERROR! input type cannot be empty. Use --input-type" + defText)
+        exit(1)
+    
+    if input_port == 0:
+        print(alertText + "No input port specified. Using default port for that input. (to set a port use --input-port)" + defText)
+    
+    json_payload_for_input_conf = get_input_conf_json(input_type, input_port, False)
+
+    api_url = "/api/plugins/org.graylog.plugins.forwarder/forwarder/profiles/" + input_profile_id + "/inputs"
+    r = doGraylogApi(dictGraylogApi, "POST", api_url, {}, json_payload_for_input_conf, False, False, 200, True)
+
+    if r['success'] == True:
+        print(successText + "Input " + blueText + json_payload_for_input_conf['title'] + " " + successText + "successfully created." + defText)
+        if args.verbose == True:
+            print(json.dumps(json_payload_for_input_conf, indent=4))
+    else:
+        print(errorText + "Failed to create Input " + blueText + json_payload_for_input_conf['title'] + defText)
+        return ""
+
+def safe_create_forwarder_input(input_type: str, input_port: int, input_profile_id: str):
+    if not re.search("^[0-9a-f]{20}", str(input_profile_id)):
+        print(errorText + "ERROR: Invalid input profile id '" + blueText + input_profile_id + "'" + defText)
+        exit(1)
+
+    # input_type = args.input_type
+    safe_input_port = get_input_port_from_short_type(input_type, input_port)
+    input_protocol = get_input_protocol_from_short_type(input_type)
+
+    # get input to make sure port is not duplicated isn't duplicated
+    inputs = get_forwarder_input_profile_inputs(graylog_api_conf_from_yaml, input_profile_id)
+    is_port_and_protocol_in_use = check_if_input_on_same_port_and_protocol_exists(inputs, safe_input_port, input_protocol)
+    
+    if is_port_and_protocol_in_use == True:
+        print(errorText + "ERROR: An input already exists on port " + str(safe_input_port) + "/" + input_protocol.lower() + defText)
+        exit(1)
+    else:
+        create_forwarder_input(graylog_api_conf_from_yaml, input_profile_id, input_type, safe_input_port)
+
+def get_input_is_tcp_or_udp(input_type: str):
+    if re.search("tcp", str(input_type)) or re.search("beats", str(input_type)):
+        return "tcp"
+    elif re.search("udp", str(input_type)):
+        return "udp"
+
+    return ""
+
+def get_input_protocol_from_short_type(input_type: str):
+    input_conf = get_input_conf_json(input_type, 0, False)
+    
+    if len(input_type) == 0:
+        print(errorText + "ERROR: Input type cannot be empty." + defText)
+        exit(1)
+
+    if not "type" in input_conf:
+        print(errorText + "ERROR: Invalid Input type." + defText)
+        exit(1)
+
+    input_protocol = get_input_is_tcp_or_udp(input_conf["type"])
+    if input_protocol.lower() == "udp" or input_protocol.lower() == "tcp":
+        return input_protocol.lower()
+    else:
+        print(errorText + "ERROR: Invalid Input type." + defText)
+        exit(1)
+
+    return ""
+
+def get_input_port_from_short_type(input_type: str, input_port: int):
+    json_payload_for_input_conf = get_input_conf_json(input_type, input_port, False)
+    if not "configuration" in json_payload_for_input_conf:
+        print(errorText + "ERROR: Invalid Input type." + defText)
+        exit(1)
+    
+    if not "port" in json_payload_for_input_conf["configuration"]:
+        print(errorText + "ERROR: Invalid Input type." + defText)
+        exit(1)
+    
+    return json_payload_for_input_conf["configuration"]["port"]
+
+def get_forwarder_input_profile(dictGraylogApi: dict):
+    api_url = "/api/plugins/org.graylog.plugins.forwarder/forwarder/profiles?query=&page=1&per_page=100"
+    r = doGraylogApi(dictGraylogApi, "GET", api_url, {}, {}, False, False, 200, True)
+    # print(json.dumps(r, indent=4))
+    if not "json" in r:
+        return []
+
+    if not "forwarder_input_profiles" in r['json']:
+        return []
+
+    return r['json']['forwarder_input_profiles']
+
+def get_most_recently_created_input_profile_id(dictGraylogApi: dict):
+    sort_list = []
+    dict_by_id = {}
+    dict_by_created_date = {}
+    input_profiles = get_forwarder_input_profile(dictGraylogApi)
+    for input_profile in input_profiles:
+        if 'id' in input_profile and 'created_at' in input_profile:
+            dict_by_id[input_profile['id']] = input_profile
+            dict_by_created_date[input_profile['created_at']] = input_profile
+            sort_list.append(input_profile['created_at'])
+    
+    sort_list.sort(reverse=True)
+
+    # return ""
+    
+    if len(sort_list) and 'id' in dict_by_created_date[sort_list[0]]:
+        return dict_by_created_date[sort_list[0]]['id']
+
+    return ""
+
+def get_forwarder_input_profile_inputs(dictGraylogApi: dict, input_profile_id: str):
+    api_url = "/api/plugins/org.graylog.plugins.forwarder/forwarder/profiles/" + input_profile_id + "/inputs?query=&page=1&per_page=100"
+    r = doGraylogApi(dictGraylogApi, "GET", api_url, {}, {}, False, False, 200, True)
+    
+    inputs = []
+
+    if not "json" in r:
+        return {}
+    
+    if not "forwarder_inputs" in r['json']:
+        return {}
+    
+    for input in r['json']['forwarder_inputs']:
+        port_type_proto = get_input_is_tcp_or_udp(input['type'])
+        # print(port_type_proto)
+        if "configuration" in input:
+            if "port" in input["configuration"]:
+                # print(input["configuration"]["port"])
+                # print()
+                dict_for_list = {
+                    "type": input['type'],
+                    "protocol": port_type_proto,
+                    "port": input["configuration"]["port"]
+                }
+                inputs.append(dict_for_list)
+
+    # print(json.dumps(inputs, indent=4))
+    return inputs
+
+def check_if_input_on_same_port_and_protocol_exists(inputs_list: list, input_port: int, input_protocol: str):
+    for input in inputs_list:
+        if "port" in input and "protocol" in input:
+            # print(input["port"])
+            # print(input_port)
+            if input["port"] == input_port:
+                if input["protocol"].lower() == input_protocol.lower():
+                    return True
+    
+    return False
 
 # ================= FUNCTIONS END ===============================
 
@@ -350,6 +672,8 @@ graylog_api_conf_from_yaml = load_config_from_dict(dict_config, False)
 print(alertText + "Graylog Server: " + graylog_api_conf_from_yaml['host'] + defText + "\n")
 
 # do_action(graylog_api_conf_from_yaml, args.action)
+
+# BE SURE to add actions to list above: list_actions
 match args.action:
     case "list-streams":
         graylog_api_get_streams_list(graylog_api_conf_from_yaml)
@@ -364,3 +688,37 @@ match args.action:
         share_with_grn = "grn::::team:64653376b55b7e084a8ffe5a"
         share_level = "view"
         bulk_graylog_api_share_dashboard(dashboard_list, graylog_api_conf_from_yaml, share_with_grn, share_level)
+    case "create-input-profile":
+        input_profile_id = create_input_profile(graylog_api_conf_from_yaml, args.title, args.description)
+        if len(input_profile_id) > 0:
+            print("Input Profile ID: " + blueText + input_profile_id + defText)
+    case "create-forwarder-input":
+        input_profile_id_to_use = args.input_profile_id
+        
+        if input_profile_id_to_use.lower() == "create":
+            print(alertText + "Magic input profile id '" + blueText + "create" + alertText + "' used. Will create new input profile and use that id." + defText)
+            input_profile_id_to_use = create_input_profile(graylog_api_conf_from_yaml, args.title, args.description)
+        elif input_profile_id_to_use.lower() == "latest":
+            print(alertText + "Magic input profile id '" + blueText + "latest" + alertText + "' used. Will use id of most recently created input profile." + defText)
+            input_profile_id_to_use = get_most_recently_created_input_profile_id(graylog_api_conf_from_yaml)
+            print("Most recent input profile id: " + blueText + input_profile_id_to_use + defText)
+
+        if len(args.input_types):
+            print(alertText + "--input-types argument used. This will supersede --input-type" + defText)
+            input_types_list = args.input_types.split(",")
+        else:
+            input_types_list = [args.input_type]
+
+        # print(json.dumps(split_list, indent=4))
+        # exit()
+
+        for input_type_entry in input_types_list:
+            if input_type_entry in list_input_type:
+                safe_create_forwarder_input(input_type_entry, args.input_port, input_profile_id_to_use)
+            else:
+                print(alertText + "WARNING: Input type '" + blueText + input_type_entry + alertText + "' is invalid. Ignoring." + defText)
+
+
+
+
+# print(json.dumps(r, indent=4))
