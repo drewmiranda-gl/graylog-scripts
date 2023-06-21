@@ -11,6 +11,7 @@ list_actions.append("share-all-stream")
 list_actions.append("share-all-dashboards")
 list_actions.append("create-input-profile")
 list_actions.append("create-forwarder-input")
+list_actions.append("create-admin-user")
 list_actions.sort()
 
 list_input_type = []
@@ -35,6 +36,13 @@ parser.add_argument("--input-type", help='Input Type', type=str, default="", cho
 parser.add_argument("--input-types", help='Comma Separated list of input types. Must be valid choices from --input-type. Supersedes --input-type.', type=str, default="", required=False)
 parser.add_argument("--input-port", help='Input Port Number', default=0, type=int, required=False)
 parser.add_argument("--input-profile-id", help='Forwarder ID. Can also use create (creates new input profile) or latest (uses most recently created input profile).', default="", type=str, required=False)
+parser.add_argument("--data-adapter-name", help='Name of Data Adapter to work with.', default="", type=str, required=False)
+parser.add_argument("--lookup-key", help='ID of Data Adapter to work with.', default="", type=str, required=False)
+parser.add_argument("--file", help='File for bulk operations. 1 entry per line', default="", type=str, required=False)
+parser.add_argument("--firstname", help='First Name', default="", type=str, required=False)
+parser.add_argument("--lastname", help='Last Name', default="", type=str, required=False)
+parser.add_argument("--email", help='Email', default="", type=str, required=False)
+parser.add_argument("--user-password", help='Password for user', default="", type=str, required=False)
 
 args = parser.parse_args()
 
@@ -296,6 +304,27 @@ def doGraylogApi(dictGraylogApi: dict, argMethod: str, argApiUrl: str, argHeader
             } 
     else:
         return {"msg": "api_not_configured"}
+
+def validate_input(validation_type: str, validation_value: str, error_msg: str, fatal: bool):
+    match validation_type:
+        case "not-empty":
+            if len(validation_value):
+                return True
+            else:
+                if fatal == True:
+                    print(errorText + error_msg + defText)
+                    exit(1)
+                else:
+                    return False
+        case "file-exists":
+            if exists(validation_value):
+                return True
+            else:
+                if fatal == True:
+                    print(errorText + error_msg + defText)
+                    exit(1)
+                else:
+                    return False
 
 def graylog_api_get_streams_list(dictGraylogApi: dict):
     r = doGraylogApi(dictGraylogApi, "GET", "/api/streams", {}, {}, False, False, 200, True)
@@ -656,6 +685,42 @@ def check_if_input_on_same_port_and_protocol_exists(inputs_list: list, input_por
     
     return False
 
+def safe_add_entry_to_mongodb_lookup(graylog_api_conf_from_yaml: dict, data_adapter_name: str, lookup_key: str, file: str):
+    validate_input("not-empty", data_adapter_name, "ERROR: Data Adapter Name cannot be empty. Use --data-adapter-name", True)
+    validate_input("not-empty", lookup_key, "ERROR: Lookup Key cannot be empty. Use --lookup-key", True)
+    validate_input("not-empty", file, "ERROR: File cannot be empty. Use --file", True)
+    validate_input("file-exists", file, "ERROR: File '" + blueText + file + errorText + "' does not exist.", True)
+
+def safe_create_user(graylog_api_conf_from_yaml: dict, user_first_name: str, user_last_name: str, user_email: str, user_password: str):
+    validate_input("not-empty", user_first_name, "ERROR: First Name cannot be empty. Use --firstname", True)
+    validate_input("not-empty", user_last_name, "ERROR: Last Name cannot be empty. Use --lastname", True)
+    validate_input("not-empty", user_email, "ERROR: Email cannot be empty. Use --email", True)
+    validate_input("not-empty", user_password, "ERROR: User Password cannot be empty. Use --user-password", True)
+
+    json_payload_for_create_user = {
+        "first_name": str(user_first_name),
+        "last_name": str(user_last_name),
+        "username": str(user_email),
+        "email": str(user_email),
+        "password": str(user_password),
+        "roles": [
+            "Reader",
+            "Admin"
+        ],
+        "permissions": []
+    }
+
+    api_url = "/api/users"
+    r = doGraylogApi(graylog_api_conf_from_yaml, "POST", api_url, {}, json_payload_for_create_user, False, False, 201, False)
+
+    if r['success'] == True:
+        print(successText + "User " + blueText + str(user_email) + " " + successText + "successfully created." + defText)
+    else:
+        print(errorText + "Failed to create User " + blueText + str(user_email) + defText)
+        if "text" in r:
+            print(alertText + r["text"] + defText)
+        return ""
+
 # ================= FUNCTIONS END ===============================
 
 
@@ -677,21 +742,25 @@ print(alertText + "Graylog Server: " + graylog_api_conf_from_yaml['host'] + defT
 match args.action:
     case "list-streams":
         graylog_api_get_streams_list(graylog_api_conf_from_yaml)
+    
     case "share-all-stream":
         streams_list = graylog_api_get_streams_list(graylog_api_conf_from_yaml)
         # stream_id = "000000000000000000000002"
         share_with_grn = "grn::::team:64653376b55b7e084a8ffe5a"
         share_level = "view"
         bulk_graylog_api_share_stream(streams_list, graylog_api_conf_from_yaml, share_with_grn, share_level)
+    
     case "share-all-dashboards":
         dashboard_list = graylog_api_get_dashboard_list(graylog_api_conf_from_yaml)
         share_with_grn = "grn::::team:64653376b55b7e084a8ffe5a"
         share_level = "view"
         bulk_graylog_api_share_dashboard(dashboard_list, graylog_api_conf_from_yaml, share_with_grn, share_level)
+    
     case "create-input-profile":
         input_profile_id = create_input_profile(graylog_api_conf_from_yaml, args.title, args.description)
         if len(input_profile_id) > 0:
             print("Input Profile ID: " + blueText + input_profile_id + defText)
+    
     case "create-forwarder-input":
         input_profile_id_to_use = args.input_profile_id
         
@@ -718,6 +787,8 @@ match args.action:
             else:
                 print(alertText + "WARNING: Input type '" + blueText + input_type_entry + alertText + "' is invalid. Ignoring." + defText)
 
+    case "create-admin-user":
+        safe_create_user(graylog_api_conf_from_yaml, args.firstname, args.lastname, args.email, args.user_password)
 
 
 
