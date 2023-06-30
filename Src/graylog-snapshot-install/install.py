@@ -274,6 +274,11 @@ if args.erase_opensearch == True:
     erase_opensearch()
 
 # 1. Extract .tgz and get path
+
+if not exists(args.tgz):
+    print(errorText + "ERROR! snapshot tgz file " + blueText + str(args.tgz) + errorText + " does not exist!" + defText)
+    exit(1)
+
 extracted_path = extract(args.tgz)
 # extracted_path = "./extract/graylog-5.1.0-SNAPSHOT-20230331094000-linux-x64"
 # print("Extracted Path: " + extracted_path)
