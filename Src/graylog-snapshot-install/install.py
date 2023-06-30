@@ -19,13 +19,15 @@
 # 5. create service
 # 
 
-import argparse, shutil, os, requests, time, json
+import argparse, shutil, os, requests, time, json, subprocess
 from os.path import exists
 from requests.auth import HTTPBasicAuth
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--tgz", help="Graylog Snap .tgz file", required=True)
+parser.add_argument("--erase-mongodb", help="Erase graylog mongodb database", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--erase-opensearch", help="Erase graylog opensearch indexes", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
@@ -247,6 +249,26 @@ def do_wait_until_online():
                 print(successText + "Graylog Cluster is Online" + defText)
                 return True
     return False
+
+def erase_mongodb():
+    print(alertText + "Deleting MongoDB database " + blueText + "graylog" + defText)
+    proc = subprocess.Popen(["mongosh mongodb://127.0.0.1:27017/graylog --quiet --eval 'printjson(db.dropDatabase())'"], stdout=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    print("program output:", out)
+
+def erase_opensearch():
+    print(alertText + "Deleting OpenSearch indices " + blueText + "_all" + defText)
+    x = requests.delete('http://127.0.0.1:9200/_all')
+    print(x.text)
+
+# prelim whatever
+print("Erase graylog mongo db: " + str(args.erase_mongodb))
+if args.erase_mongodb == True:
+    erase_mongodb()
+
+print("Erase opensearch indexes: " + str(args.erase_opensearch))
+if args.erase_opensearch == True:
+    erase_opensearch()
 
 print(alertText + "Stopping " + blueText + "graylog-server" + defText)
 os.system("systemctl stop graylog-server")
