@@ -261,6 +261,9 @@ def erase_opensearch():
     x = requests.delete('http://127.0.0.1:9200/_all')
     print(x.text)
 
+print(alertText + "Stopping " + blueText + "graylog-server" + defText)
+os.system("systemctl stop graylog-server")
+
 # prelim whatever
 print("Erase graylog mongo db: " + str(args.erase_mongodb))
 if args.erase_mongodb == True:
@@ -269,9 +272,6 @@ if args.erase_mongodb == True:
 print("Erase opensearch indexes: " + str(args.erase_opensearch))
 if args.erase_opensearch == True:
     erase_opensearch()
-
-print(alertText + "Stopping " + blueText + "graylog-server" + defText)
-os.system("systemctl stop graylog-server")
 
 # 1. Extract .tgz and get path
 extracted_path = extract(args.tgz)
