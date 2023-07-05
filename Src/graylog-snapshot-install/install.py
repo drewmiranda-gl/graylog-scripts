@@ -28,6 +28,9 @@ parser = argparse.ArgumentParser(description="Just an example",
 parser.add_argument("--tgz", help="Graylog Snap .tgz file", required=True)
 parser.add_argument("--erase-mongodb", help="Erase graylog mongodb database", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--erase-opensearch", help="Erase graylog opensearch indexes", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--wait-for-opensearch", help="if script should wait until opensearch api is reachable", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--debug", help="debug stuff", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--skip-root-check", help="allow running as non root user.", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
@@ -113,8 +116,9 @@ def move_to_path(argSrc, argDst):
 # verify running as root
 whoami = os.popen('whoami').read().strip()
 if whoami.lower() != 'root':
-    print(errorText + "ERROR! please execute as root." + defText)
-    exit(1)
+    if args.skip_root_check == False:
+        print(errorText + "ERROR! please execute as root." + defText)
+        exit(1)
 
 def graylogApiConfigIsValid():
     return True
@@ -131,6 +135,44 @@ def mergeDict(dictOrig: dict, dictToAdd: dict, allowReplacements: bool):
             dictOrig[item] = dictToAdd[item]
     
     return dictOrig
+
+def do_opensearch_api(argMethod: str, argApiUrl: str, argHeaders: dict, argJson: dict, argFiles: dict, argExpectedReturnCode: int, argReturnJson: bool):
+    sUrl = "http://127.0.0.1:9200" + argApiUrl
+    # print(sUrl)
+
+    # add headers
+    sHeaders = {"Accept":"application/json", "X-Requested-By":"python-ctpk-upl"}
+    sHeaders = mergeDict(sHeaders, argHeaders, True)
+
+    if argMethod.upper() == "GET":
+        try:
+            r = requests.get(sUrl, headers=sHeaders, verify=False)
+        except Exception as e:
+            return {
+                "success": False,
+                "exception": e
+            }
+    
+    if r.status_code == argExpectedReturnCode:
+        if argReturnJson:
+            return {
+                "json": json.loads(r.text),
+                "status_code": r.status_code,
+                "success": True
+            }
+        else:
+            return {
+                "text": r.text,
+                "status_code": r.status_code,
+                "success": True
+            }
+    else:
+        return {
+            "status_code": r.status_code,
+            "success": False,
+            "failure_reason": "Return code " + str(r.status_code) + " does not equal expected code of " + str(argExpectedReturnCode),
+            "text": r.text
+        }
 
 def doGraylogApi(argMethod: str, argApiUrl: str, argHeaders: dict, argJson: dict, argFiles: dict, argExpectedReturnCode: int, argReturnJson: bool):
     if graylogApiConfigIsValid() == True:
@@ -250,6 +292,50 @@ def do_wait_until_online():
                 return True
     return False
 
+def do_wait_for_indexer():
+    iSocketRetries = 0
+    iSocketInitialRetryBackOff = iSocketRetryWaitSec
+
+    while iSocketRetries < iSocketMaxRetries:
+        if iSocketRetries > 0:
+            print("Retry " + str(iSocketRetries) + " of " + str(iSocketMaxRetries))
+
+        r = do_opensearch_api("GET", "", {}, {}, False, 200, True)
+        if 'success' in r:
+            if r['success'] == False:
+                # if "exception" in r:
+                print(errorText)
+                print(r["exception"])
+                print(defText)
+
+                print("Waiting " + str(iSocketInitialRetryBackOff) + "s (Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
+                # sleep for X seconds
+                time.sleep(iSocketInitialRetryBackOff)
+
+                # Increment socket retry count
+                iSocketRetries = iSocketRetries + 1
+
+                # If the number of retries exceeds the intial backoff retry grace count
+                #   Don't apply backoff for the first X number of retries in case the error was short lived
+                if iSocketRetries > iSocketRetryBackOffGraceCount:
+                    # if backoff value is less than max, keep adding backoff value to delay
+                    if iSocketInitialRetryBackOff < iSocketRetryBackOffMaxSec:
+                        iSocketInitialRetryBackOff = iSocketInitialRetryBackOff + iSocketRetryBackOffSec
+
+                    # if backoff value exceeds max, set to max
+                    if iSocketInitialRetryBackOff > iSocketRetryBackOffMaxSec:
+                        iSocketInitialRetryBackOff = iSocketRetryBackOffMaxSec
+
+                # If socket retries exceeds max, exit script
+                if iSocketRetries > iSocketMaxRetries:
+                    print("ERROR! To many socket retries")
+                    return False
+
+            elif r['success'] == True:
+                print(successText + "OpenSearch Cluster is Online" + defText)
+                return True
+    return False
+
 def erase_mongodb():
     print(alertText + "Deleting MongoDB database " + blueText + "graylog" + defText)
     proc = subprocess.Popen(["mongosh mongodb://127.0.0.1:27017/graylog --quiet --eval 'printjson(db.dropDatabase())'"], stdout=subprocess.PIPE, shell=True)
@@ -258,8 +344,14 @@ def erase_mongodb():
 
 def erase_opensearch():
     print(alertText + "Deleting OpenSearch indices " + blueText + "_all" + defText)
-    x = requests.delete('http://127.0.0.1:9200/_all')
-    print(x.text)
+    
+    if args.wait_for_opensearch == True:
+        print(alertText + "waiting until graylog-server is online..." + defText)
+        do_wait_for_indexer()
+
+    if args.debug == False:
+        x = requests.delete('http://127.0.0.1:9200/_all')
+        print(x.text)
 
 print(alertText + "Stopping " + blueText + "graylog-server" + defText)
 os.system("systemctl stop graylog-server")
