@@ -117,7 +117,7 @@ def move_to_path(argSrc, argDst):
 whoami = os.popen('whoami').read().strip()
 if whoami.lower() != 'root':
     if args.skip_root_check == False:
-        print(errorText + "ERROR! please execute as root." + defText)
+        print(errorText + "ERROR! please execute as root. (or use --skip-root-check)" + defText)
         exit(1)
 
 def graylogApiConfigIsValid():
