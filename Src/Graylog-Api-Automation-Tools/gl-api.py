@@ -115,7 +115,7 @@ def load_config_from_dict(dict_input: dict, noAuth: bool):
         exit(1)
 
     if 'port' in dict_input['graylog_api']:
-        if not len(dict_input['graylog_api']['port']) > 0 and not int(dict_input['graylog_api']['port']) > 0:
+        if not len(str(dict_input['graylog_api']['port'])) > 0 and not int(dict_input['graylog_api']['port']) > 0:
             print("ERROR! Graylog API Config: port value is empty")
             exit(1)
     else:
@@ -129,24 +129,24 @@ def load_config_from_dict(dict_input: dict, noAuth: bool):
                 # check if username and password is set
                 if 'username' in dict_input['graylog_api'] and 'password' in dict_input['graylog_api']:
                     if len(dict_input['graylog_api']['username']) and len(dict_input['graylog_api']['password']) > 0:
-                        return True
+                        abc = "ok"
                     else:
                         print("ERROR! Graylog API Config: username and password empty")
                         exit(1)
-
-                print("ERROR! Graylog API Config: username and password not set")
-                exit(1)
+                else:
+                    print("ERROR! Graylog API Config: username and password not set")
+                    exit(1)
     else:
         print("ERROR! Graylog API Config: graylog_api_token not set")
         exit(1)
-
+    
     if len(dict_input['graylog_api']['username']) == 0 and len(dict_input['graylog_api']['password']) == 0 and len(dict_input['graylog_api']['graylog_api_token']) > 0:
         graylog_api_user = dict_input['graylog_api']['graylog_api_token']
         graylog_api_password = "token"
     else:
         graylog_api_user = dict_input['graylog_api']['username']
         graylog_api_password = dict_input['graylog_api']['password']
-    
+
     return {
         "https": bool(dict_input['graylog_api']['https']),
         "host": str(dict_input['graylog_api']['host']),
