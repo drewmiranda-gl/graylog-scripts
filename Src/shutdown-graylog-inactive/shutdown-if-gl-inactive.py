@@ -20,6 +20,8 @@ parser.add_argument("--skip-root-check", help="allow running as non root user.",
 parser.add_argument("--skip-uptime-check", help="", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--skip-graylog-active-check", help="", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--skip-sleep", help="", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--debug-no-send-notification", help="", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--debug-ignore-uptime-failsafe", help="", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
@@ -343,7 +345,7 @@ def get_datetime_diff(t1: object, t2: object):
     return delta.seconds
 
 def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
-    r = doGraylogApi(graylog_api_conf, "get", "/api/plugins/org.graylog.plugins.auditlog/entries?page=1&per_page=1", {}, {}, {}, {}, 200, True)
+    r = doGraylogApi(graylog_api_conf, "get", "/api/plugins/org.graylog.plugins.auditlog/entries?page=1&per_page=100", {}, {}, {}, {}, 200, True)
     # print(json.dumps(r, indent=4))
 
     if not "json" in r:
@@ -358,8 +360,27 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     if not "timestamp" in r["json"]["entries"][0]:
         return False
     
-    timestamp_utc = r["json"]["entries"][0]["timestamp"]
-    print("Most Recent Audit Event (UTC): " + str(timestamp_utc))
+    # we must get the most recent NON customization notification item
+    # print(json.dumps(r["json"]["entries"], indent=4))
+    # exit()
+    for audit_entry in r["json"]["entries"]:
+        ignore_entry = False
+
+        if "object" in audit_entry and str(audit_entry["object"]) == "urn:graylog:unknown:notification":
+            ignore_entry = True
+        
+        if ignore_entry == False:
+            # print(json.dumps(audit_entry, indent=4))
+            timestamp_utc = audit_entry["timestamp"]
+            audit_msg = audit_entry["message"]
+            audit_object = audit_entry["object"]
+            break
+    
+    # exit()
+    # timestamp_utc = r["json"]["entries"][0]["timestamp"]
+
+    print("Most Recent Audit Event (UTC): " + blueText + str(timestamp_utc) + defText)
+    print(blueText + str(audit_msg) + "(" + str(audit_object) + ")" + defText)
     timestamp_utc_obj = datetime.strptime(timestamp_utc, '%Y-%m-%dT%H:%M:%S.%f%z')
     # .strftime("%Y-%m-%dT%H:%M:%S")
     # print(timestamp_utc_obj)
@@ -377,7 +398,7 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     # print(delta_sec)
     # exit()
 
-    print("Most Recent Audit Event: " + str(delta_sec) + "s. Threshold: " + str(idle_threshold_sec) + "s")
+    print("    " + blueText + str(delta_sec) + defText + "s ago. Threshold: " + str(idle_threshold_sec) + "s")
 
     if delta_sec > idle_threshold_sec:
         return False
@@ -432,10 +453,13 @@ def do_create_graylog_notification(graylog_api_conf: dict, title: str, short_msg
         print(json.dumps(r, indent=4))
 
 def do_update_cluster_notification(graylog_api_conf: dict, title: str, short_msg: str, long_msg: str):
-    # ensure we don't have stale or orphaned notifications.
-    do_remove_all_existing_notifications(graylog_api_conf)
-    # create fresh new notification!
-    do_create_graylog_notification(graylog_api_conf, title, short_msg, long_msg)
+    if args.debug_no_send_notification == False:
+        # ensure we don't have stale or orphaned notifications.
+        do_remove_all_existing_notifications(graylog_api_conf)
+        # create fresh new notification!
+        do_create_graylog_notification(graylog_api_conf, title, short_msg, long_msg)
+    else:
+        print(alertText + "--debug-no-send-notification used, skipping posting cluster notification")
 
 # ================= FUNCTIONS END ===============================
 
@@ -470,13 +494,16 @@ if args.skip_uptime_check == False:
     # uptime > 6h
     if int(uptime_sec) > 21600:
         print(alertText + "Uptime greater than 6h. Intending to shutdown!" + defText)
-        if args.confirm == True:
-            shut_cmd = "shutdown -h now"
-            print(errorText + "executing '" + blueText + str(shut_cmd) + defText)
-            os.system(shut_cmd)
+        if args.debug_ignore_uptime_failsafe == False:
+            if args.confirm == True:
+                shut_cmd = "shutdown -h now"
+                print(errorText + "executing '" + blueText + str(shut_cmd) + defText)
+                os.system(shut_cmd)
+            else:
+                print(alertText + "   use " + blueText + "--confirm" + alertText + " flag to allow shutdown to complete" + defText)
+            exit(0)
         else:
-            print(alertText + "   use " + blueText + "--confirm" + alertText + " flag to allow shutdown to complete" + defText)
-        exit(0)
+            print("--debug-ignore-uptime-failsafe used. Ignoring uptime failsafe.")
 
 print(alertText + "Graylog Server: " + graylog_api_conf_from_yaml['host'] + defText)
 
