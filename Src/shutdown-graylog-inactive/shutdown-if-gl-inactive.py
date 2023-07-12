@@ -19,6 +19,7 @@ parser.add_argument("--config-file", '-c', help='Config file to use. Defaults to
 parser.add_argument("--skip-root-check", help="allow running as non root user.", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--skip-uptime-check", help="", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--skip-graylog-active-check", help="", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--skip-sleep", help="", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
@@ -216,6 +217,15 @@ def doGraylogApi(dictGraylogApi: dict, argMethod: str, argApiUrl: str, argHeader
                     "success": False,
                     "exception": e
                 }
+        elif argMethod.upper() == "DELETE":
+            # print(sUrl)
+            try:
+                r = requests.delete(sUrl, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+            except Exception as e:
+                return {
+                    "success": False,
+                    "exception": e
+                }
         elif argMethod.upper() == "POST":
             send = ""
 
@@ -326,11 +336,15 @@ def get_uptime_sec():
     return int(0)
 
 def get_datetime_diff(t1: object, t2: object):
+    # safety if audit is newer than current UTC time
+    if t1 > t2:
+        return int(0)
     delta = t2 - t1
     return delta.seconds
 
 def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
-    r = doGraylogApi(graylog_api_conf, "get", "/api/plugins/org.graylog.plugins.auditlog/entries?page=1&per_page=10", {}, {}, {}, {}, 200, True)
+    r = doGraylogApi(graylog_api_conf, "get", "/api/plugins/org.graylog.plugins.auditlog/entries?page=1&per_page=1", {}, {}, {}, {}, 200, True)
+    # print(json.dumps(r, indent=4))
 
     if not "json" in r:
         return False
@@ -345,6 +359,7 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
         return False
     
     timestamp_utc = r["json"]["entries"][0]["timestamp"]
+    print("Most Recent Audit Event (UTC): " + str(timestamp_utc))
     timestamp_utc_obj = datetime.strptime(timestamp_utc, '%Y-%m-%dT%H:%M:%S.%f%z')
     # .strftime("%Y-%m-%dT%H:%M:%S")
     # print(timestamp_utc_obj)
@@ -353,6 +368,15 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     # print(now_utc)
 
     delta_sec = get_datetime_diff(timestamp_utc_obj, now_utc)
+    # t1 = timestamp_utc_obj
+    # t2 = now_utc
+    # print("t1 (audit) = " + str(t1))
+    # print("t2 (now) = " + str(t2))
+    # delta = t2 - t1
+    # print(delta.seconds)
+    # print(delta_sec)
+    # exit()
+
     print("Most Recent Audit Event: " + str(delta_sec) + "s. Threshold: " + str(idle_threshold_sec) + "s")
 
     if delta_sec > idle_threshold_sec:
@@ -361,6 +385,57 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     return True
 
     # print(json.dumps(r["json"]["entries"][0]["timestamp"], indent=4))
+
+def get_graylog_customication_notifications(graylog_api_conf: dict):
+    r = doGraylogApi(graylog_api_conf, "get", "/api/plugins/org.graylog.plugins.customization/notifications", {}, {}, {}, {}, 200, True)
+    if 'success' in r and "json" in r and r['success'] == True:
+        return r["json"]
+
+    return False
+
+def do_delete_notification(graylog_api_conf: dict, notification_gid: str):
+    # print(defText + "Deleting notification: " + blueText + notification_gid + defText)
+    url = "/api/plugins/org.graylog.plugins.customization/notifications/" + str(notification_gid)
+    r = doGraylogApi(graylog_api_conf, "delete", url, {}, {}, {}, {}, 200, True)
+    # print(json.dumps(r, indent=4))
+    if 'success' in r and r['success'] == True:
+        print(successText + "Successfully deleted notification: " + blueText + notification_gid + defText)
+    else:
+        print(errorText + "Failed to delete notification: " + blueText + notification_gid + defText)
+
+def do_remove_all_existing_notifications(graylog_api_conf: dict):
+    notifications = get_graylog_customication_notifications(graylog_api_conf)
+    if notifications and len(notifications) > 0:
+        # print(json.dumps(notifications, indent=4))
+        for notification in notifications:
+            # print(notification)
+            do_delete_notification(graylog_api_conf, notification)
+
+def do_create_graylog_notification(graylog_api_conf: dict, title: str, short_msg: str, long_msg: str):
+    url = "/api/plugins/org.graylog.plugins.customization/notifications"
+    json_payload = {
+        "title": str(title),
+        "shortMessage": str(short_msg),
+        "longMessage": str(long_msg),
+        "isActive": True,
+        "isDismissible": False,
+        "atLogin": True,
+        "isGlobal": True,
+        "variant": "warning",
+        "hiddenTitle": False
+    }
+    r = doGraylogApi(graylog_api_conf, "post", url, {}, json_payload, {}, {}, 200, True)
+    if "success" in r and r['success'] == True:
+        print(successText + "Notification successfully created." + defText)
+    else:
+        print(errorText + "Notification creation failed." + defText)
+        print(json.dumps(r, indent=4))
+
+def do_update_cluster_notification(graylog_api_conf: dict, title: str, short_msg: str, long_msg: str):
+    # ensure we don't have stale or orphaned notifications.
+    do_remove_all_existing_notifications(graylog_api_conf)
+    # create fresh new notification!
+    do_create_graylog_notification(graylog_api_conf, title, short_msg, long_msg)
 
 # ================= FUNCTIONS END ===============================
 
@@ -371,6 +446,14 @@ if whoami.lower() != 'root':
     if args.skip_root_check == False:
         print(errorText + "ERROR! please execute as root. (or use " + blueText + "--skip-root-check" + errorText + ")" + defText)
         exit(1)
+
+if not exists(strConfigFile):
+    print(errorText + "ERROR! Config file '" + blueText + strConfigFile + errorText + "' does not exist!" + defText)
+    exit(1)
+
+dict_config = yaml_to_dict(strConfigFile)
+graylog_api_conf_from_yaml = load_config_from_dict(dict_config, False)
+do_update_cluster_notification(graylog_api_conf_from_yaml, "Automatic shutdown warning!", "This cluster will automatically shutdown after 30 minutes of inactivity.", "https://graylogdocumentation.atlassian.net/wiki/spaces/SE/pages/2876145668/Graylog+Snapshot+testing+via+automated+AWS+instance")
 
 uptime_sec = get_uptime_sec()
 print("Uptime in seconds: " + blueText + str(uptime_sec) + defText)
@@ -395,28 +478,32 @@ if args.skip_uptime_check == False:
             print(alertText + "   use " + blueText + "--confirm" + alertText + " flag to allow shutdown to complete" + defText)
         exit(0)
 
-if not exists(strConfigFile):
-    print(errorText + "ERROR! Config file '" + blueText + strConfigFile + errorText + "' does not exist!" + defText)
-    exit(1)
-
-dict_config = yaml_to_dict(strConfigFile)
-graylog_api_conf_from_yaml = load_config_from_dict(dict_config, False)
-
 print(alertText + "Graylog Server: " + graylog_api_conf_from_yaml['host'] + defText)
 
 b_is_active = is_graylog_cluster_active(graylog_api_conf_from_yaml, 1800)
 print("Is Graylog Cluster Active: " + blueText + str(b_is_active) + defText)
 
 if args.skip_graylog_active_check == True:
+    print(alertText + "--skip-graylog-active-check flag used. Ignoring graylog activity check.")
     b_is_active = False
 
 if b_is_active == False:
     print(alertText + "Graylog Cluster inactive. Intending to shutdown!" + defText)
+    get_five_min_from_now = datetime.utcnow() + timedelta(minutes=5)
+    # print(get_five_min_from_now)
+    # exit()
+    do_update_cluster_notification(graylog_api_conf_from_yaml, "Shutting down...", "This cluster will shut down at " + str(get_five_min_from_now) + " UTC", "https://graylogdocumentation.atlassian.net/wiki/spaces/SE/pages/2876145668/Graylog+Snapshot+testing+via+automated+AWS+instance")
+    if args.skip_sleep == False:
+        print("sleeping for " + blueText + "5m (300s)" + defText)
+        time.sleep(300)
     if args.confirm == True:
         shut_cmd = "shutdown -h now"
         print(errorText + "executing '" + blueText + str(shut_cmd) + defText)
         os.system(shut_cmd)
     else:
         print(alertText + "   use " + blueText + "--confirm" + alertText + " flag to allow shutdown to complete" + defText)
+else:
+    print(alertText + "Graylog cluter is active. Cannot continue." + defText)
+    print(alertText + "   use " + blueText + "--skip-graylog-active-check" + alertText + " flag to override." + defText)
 
 # print(json.dumps(r, indent=4))
