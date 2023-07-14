@@ -8,13 +8,17 @@ import configparser
 from os.path import exists
 import math
 import yaml
+import urllib3
+
+# Disable HTTPS/TLS certificate warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--debug", "-d", help="For debugging", action=argparse.BooleanOptionalAction)
 parser.add_argument("--config", help="Config Filename", default="config.ini")
 parser.add_argument("--verbose", help="Verbose output.", action=argparse.BooleanOptionalAction, default=False)
-parser.add_argument("--function", help="Type of operation/function to do", required=True)
+parser.add_argument("--function", help="Type of operation/function to do [delete]", required=True)
 parser.add_argument("--file", help="File to use for bulk operation", required=True)
 
 args = parser.parse_args()

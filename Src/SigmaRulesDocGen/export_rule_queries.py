@@ -8,7 +8,10 @@ import configparser
 from os.path import exists
 import math
 import yaml
-import urllib.parse
+import urllib.parse, urllib3
+
+# Disable HTTPS/TLS certificate warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
