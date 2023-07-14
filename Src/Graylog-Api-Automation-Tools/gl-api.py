@@ -12,6 +12,7 @@ list_actions.append("share-all-dashboards")
 list_actions.append("create-input-profile")
 list_actions.append("create-forwarder-input")
 list_actions.append("create-admin-user")
+list_actions.append("enable-geo-maxmind")
 list_actions.sort()
 
 list_input_type = []
@@ -276,6 +277,31 @@ def doGraylogApi(dictGraylogApi: dict, argMethod: str, argApiUrl: str, argHeader
             elif send == "files":
                 try:
                     r = requests.post(sUrl, json = argJson, files=argFiles, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "exception": e
+                    }
+        elif argMethod.upper() == "PUT":
+            send = ""
+
+            if not argFiles == False:
+                send = "files"
+            elif not argData  == False and len(argData) > 0:
+                send = "data"
+            else:
+                send = "json"
+
+            # print("send: " + send)
+            # exit()
+
+            if send == "json":
+                try:
+                    r = requests.put(sUrl, json = argJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                    # print(r.status_code)
+                    # print(r.headers)
+                    # print(r.text)
+                    # exit()
                 except Exception as e:
                     return {
                         "success": False,
@@ -721,6 +747,30 @@ def safe_create_user(graylog_api_conf_from_yaml: dict, user_first_name: str, use
             print(alertText + r["text"] + defText)
         return ""
 
+def enable_geo_maxmind(graylog_api_conf_from_yaml: dict):
+    json_payload = {
+            "enabled": True,
+            "enforce_graylog_schema": True,
+            "db_vendor_type": "MAXMIND",
+            "city_db_path": "/etc/graylog/server/GeoLite2-City.mmdb",
+            "asn_db_path": "/etc/graylog/server/GeoLite2-ASN.mmdb",
+            "refresh_interval_unit": "MINUTES",
+            "refresh_interval": 10,
+            "use_s3": False
+        }
+
+    api_url = "/api/system/cluster_config/org.graylog.plugins.map.config.GeoIpResolverConfig"
+    r = doGraylogApi(graylog_api_conf_from_yaml, "PUT", api_url, {}, json_payload, False, False, 202, False)
+    
+    if r['success'] == True:
+        print(successText + "Successfully enabled Geo-Location Processor using: " + blueText + "MaxMind" + defText)
+    else:
+        print(errorText + "Failed to enable Geo-Location Processor using: " + blueText + "MaxMind" + defText)
+        if "text" in r:
+            print(alertText + r["text"] + defText)
+        return ""
+
+
 # ================= FUNCTIONS END ===============================
 
 
@@ -789,6 +839,9 @@ match args.action:
 
     case "create-admin-user":
         safe_create_user(graylog_api_conf_from_yaml, args.firstname, args.lastname, args.email, args.user_password)
+    
+    case "enable-geo-maxmind":
+        enable_geo_maxmind(graylog_api_conf_from_yaml)
 
 
 
