@@ -13,6 +13,7 @@ list_actions.append("create-input-profile")
 list_actions.append("create-forwarder-input")
 list_actions.append("create-admin-user")
 list_actions.append("enable-geo-maxmind")
+list_actions.append("add-sigmahq-repo")
 list_actions.sort()
 
 list_input_type = []
@@ -770,6 +771,28 @@ def enable_geo_maxmind(graylog_api_conf_from_yaml: dict):
             print(alertText + r["text"] + defText)
         return ""
 
+def add_sigmahq_repo(graylog_api_conf_from_yaml: dict):
+    api_url = "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/repositories/default"
+    r = doGraylogApi(graylog_api_conf_from_yaml, "PUT", api_url, {}, {}, False, False, 200, False)
+
+    if r['success'] == True:
+        resp_json = json.loads(r["text"])
+        if "success_count" in resp_json:
+            str_success_count = resp_json["success_count"]
+        else:
+            str_success_count = ""
+        
+        if "failure_count" in resp_json:
+            str_failure_count = resp_json["failure_count"]
+        else:
+            str_failure_count = ""
+
+        print(successText + "Successfully added Default Sigma Repo: SigmaHQ" + defText + "\n" + "Success: " + str(str_success_count) + ", Failure: " + str(str_failure_count))
+    else:
+        print(errorText + "Failed to add Default Sigma Repo: SigmaHQ" + defText)
+        if "text" in r:
+            print(alertText + r["text"] + defText)
+        return ""
 
 # ================= FUNCTIONS END ===============================
 
@@ -842,6 +865,9 @@ match args.action:
     
     case "enable-geo-maxmind":
         enable_geo_maxmind(graylog_api_conf_from_yaml)
+    
+    case "add-sigmahq-repo":
+        add_sigmahq_repo(graylog_api_conf_from_yaml)
 
 
 
