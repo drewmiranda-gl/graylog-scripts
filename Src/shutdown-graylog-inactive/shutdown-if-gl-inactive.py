@@ -344,9 +344,13 @@ def get_datetime_diff(t1: object, t2: object):
     delta = t2 - t1
     return delta.seconds
 
-def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
+def get_most_recent_activity_via_audit_log(graylog_api_conf: dict):
     r = doGraylogApi(graylog_api_conf, "get", "/api/plugins/org.graylog.plugins.auditlog/entries?page=1&per_page=100", {}, {}, {}, {}, 200, True)
     # print(json.dumps(r, indent=4))
+
+    timestamp_utc = ""
+    audit_msg = ""
+    audit_object = ""
 
     if not "json" in r:
         return False
@@ -376,11 +380,48 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
             audit_object = audit_entry["object"]
             break
     
+    return {
+        "timestamp": timestamp_utc,
+        "message": audit_msg,
+        "object": audit_object
+    }
+
+def get_most_recent_activity_via_user(graylog_api_conf: dict, username: str):
+    # get users
+    r = doGraylogApi(graylog_api_conf, "get", "/api/users?include_permissions=false&include_sessions=true", {}, {}, {}, {}, 200, True)
+    
+    if not "json" in r:
+        return False
+
+    if not "users" in r["json"]:
+        return False
+    
+    if not len(r["json"]["users"]):
+        return False
+    
+    for user_entry in r["json"]["users"]:
+        entry_username = user_entry["username"]
+        if entry_username.lower() == username.lower():
+            # we got'em
+            latest_activity = user_entry["last_activity"]
+            # print(latest_activity)
+            return latest_activity
+    
+    return False
+
+def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
+    # audit_entry = get_most_recent_activity_via_audit_log(graylog_api_conf)
+    # timestamp_utc = audit_entry["timestamp"]
+    # audit_msg = audit_entry["message"]
+    # audit_object = audit_entry["object"]
+
+    timestamp_utc = get_most_recent_activity_via_user(graylog_api_conf, "admin")
+    # exit()
+    
     # exit()
     # timestamp_utc = r["json"]["entries"][0]["timestamp"]
 
-    print("Most Recent Audit Event (UTC): " + blueText + str(timestamp_utc) + defText)
-    print(blueText + str(audit_msg) + "(" + str(audit_object) + ")" + defText)
+    print("Last Activity for 'Admin' (UTC): " + blueText + str(timestamp_utc) + defText)
     timestamp_utc_obj = datetime.strptime(timestamp_utc, '%Y-%m-%dT%H:%M:%S.%f%z')
     # .strftime("%Y-%m-%dT%H:%M:%S")
     # print(timestamp_utc_obj)
@@ -493,7 +534,7 @@ if args.skip_uptime_check == False:
     # failsafe? uptime TOO long?
     # uptime > 6h
     if int(uptime_sec) > 21600:
-        print(alertText + "Uptime greater than 6h. Intending to shutdown!" + defText)
+        print(alertText + "Uptime greater than 6h. Intending to shutdown!" + defText + "\n" + "   Ignore by using --debug-ignore-uptime-failsafe")
         if args.debug_ignore_uptime_failsafe == False:
             if args.confirm == True:
                 shut_cmd = "shutdown -h now"
