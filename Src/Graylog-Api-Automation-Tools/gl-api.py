@@ -14,6 +14,7 @@ list_actions.append("create-forwarder-input")
 list_actions.append("create-admin-user")
 list_actions.append("enable-geo-maxmind")
 list_actions.append("add-sigmahq-repo")
+list_actions.append("create-role")
 list_actions.sort()
 
 list_input_type = []
@@ -45,6 +46,10 @@ parser.add_argument("--firstname", help='First Name', default="", type=str, requ
 parser.add_argument("--lastname", help='Last Name', default="", type=str, required=False)
 parser.add_argument("--email", help='Email', default="", type=str, required=False)
 parser.add_argument("--user-password", help='Password for user', default="", type=str, required=False)
+parser.add_argument("--role-name", help='Role Name', default="", type=str, required=False)
+parser.add_argument("--role-description", help='Role Description', default="", type=str, required=False)
+parser.add_argument("--role-permissions", help='Comma separated list of permissions.', default="", type=str, required=False)
+parser.add_argument("--add-users-to-role", help='Comma separated list of users. Needed when updating a role since it currently needs to be deleted when updating it.', default="", type=str, required=False)
 
 args = parser.parse_args()
 
@@ -299,6 +304,41 @@ def doGraylogApi(dictGraylogApi: dict, argMethod: str, argApiUrl: str, argHeader
             if send == "json":
                 try:
                     r = requests.put(sUrl, json = argJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                    # print(r.status_code)
+                    # print(r.headers)
+                    # print(r.text)
+                    # exit()
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "exception": e
+                    }
+        elif argMethod.upper() == "DELETE":
+            send = ""
+
+            if not argFiles == False:
+                send = "files"
+            elif not argData  == False and len(argData) > 0:
+                send = "data"
+            else:
+                send = "json"
+
+            # print("send: " + send)
+            # exit()
+
+            args_for_req = {}
+            args_for_req["url"] = sUrl
+            if not argJson == False:
+                args_for_req["json"] = argJson
+            args_for_req["headers"] = sHeaders
+            args_for_req["verify"] = False
+            args_for_req["auth"] = HTTPBasicAuth(sArgUser, sArgPw)
+
+            if send == "json":
+                try:
+                    # r = requests.delete(sUrl, json = argJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
+                    r = requests.delete(**args_for_req)
+
                     # print(r.status_code)
                     # print(r.headers)
                     # print(r.text)
@@ -794,6 +834,70 @@ def add_sigmahq_repo(graylog_api_conf_from_yaml: dict):
             print(alertText + r["text"] + defText)
         return ""
 
+def does_role_exist(graylog_api_conf_from_yaml: dict, role_name: str):
+    api_url = "/api/roles/" + role_name
+    r = doGraylogApi(graylog_api_conf_from_yaml, "GET", api_url, {}, {}, False, False, 200, False)
+    
+    if "success" in r and r["success"] == True:
+        return True
+    else:
+        return False
+
+def safe_add_user_to_role(graylog_api_conf_from_yaml: dict, role_name: str, user_name: str):
+    api_url = "/api/roles/" + str(role_name) + "/members/" + str(user_name)
+    r = doGraylogApi(graylog_api_conf_from_yaml, "PUT", api_url, {}, {}, False, False, 204, False)
+    if "success" in r and r["success"] == True:
+        print(successText + "Successfully added user: '" + blueText + str(user_name) + defText + "' to role '" + blueText + str(role_name) + defText + "'")
+    else:
+        print(errorText + "Failed to add user: '" + blueText + str(user_name) + defText + "' to role '" + blueText + str(role_name) + defText + "'")
+
+def safe_create_role(graylog_api_conf_from_yaml: dict, role_name: str, role_description: str, role_permissions: str, add_users_to_role: str):
+    # args.role_name, args.role_description, args.role_permissions
+    validate_input("not-empty", role_name, "ERROR: Role Name cannot be empty. Use --role-name", True)
+    validate_input("not-empty", role_permissions, "ERROR: Role Permissions cannot be empty. Use --role-permissions", True)
+
+    if len(role_description) == 0:
+        role_description = role_name
+
+    role_permissions_list = list(role_permissions.split(","))
+
+    user_list = []
+    if len(add_users_to_role) > 0:
+        user_list = list(add_users_to_role.split(","))
+
+    # check if role name exists
+    b_does_role_exist = does_role_exist(graylog_api_conf_from_yaml, role_name)
+    
+    if b_does_role_exist == True:
+        print(alertText + "Role '" + blueText + str(role_name) + defText + "' already exists. Must delete since it appears updating roles does not work (bug?)")
+        delete_api_url = "/api/roles/" + str(role_name)
+        r = doGraylogApi(graylog_api_conf_from_yaml, "DELETE", delete_api_url, {}, False, False, False, 204, False)
+        if "success" in r and r["success"] == True:
+            print(successText + "Successfully deleted role: '" + blueText + str(role_name) + defText + "'")
+        else:
+            print(errorText + "Failed to delete role: '" + blueText + str(role_name) + defText + "'")
+            exit(1)
+
+    api_url = "/api/roles"
+    json_payload = {
+        "name": str(role_name),
+        "description": str(role_description),
+        "permissions": role_permissions_list,
+        "read_only": False
+    }
+    r = doGraylogApi(graylog_api_conf_from_yaml, "POST", api_url, {}, json_payload, False, False, 201, False)
+    if "success" in r and r["success"] == True:
+        print(successText + "Successfully created role: '" + blueText + str(role_name) + defText + "'")
+    else:
+        print(errorText + "Failed to create role: '" + blueText + str(role_name) + defText + "'")
+        exit(1)
+    
+    if len(user_list):
+        print("Adding users to role...")
+        for user_name in user_list:
+            safe_add_user_to_role(graylog_api_conf_from_yaml, role_name, user_name)
+        # /roles/{rolename}/members/{username}
+
 # ================= FUNCTIONS END ===============================
 
 
@@ -868,6 +972,9 @@ match args.action:
     
     case "add-sigmahq-repo":
         add_sigmahq_repo(graylog_api_conf_from_yaml)
+
+    case "create-role":
+        safe_create_role(graylog_api_conf_from_yaml, args.role_name, args.role_description, args.role_permissions, args.add_users_to_role)
 
 
 
