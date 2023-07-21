@@ -386,28 +386,45 @@ def get_most_recent_activity_via_audit_log(graylog_api_conf: dict):
         "object": audit_object
     }
 
+def get_boot_timestamp():
+    uptime_sec = get_uptime_sec()
+    boot_timestamp = datetime.now(timezone('UTC')) - timedelta(seconds=uptime_sec)
+    return boot_timestamp.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+
 def get_most_recent_activity_via_user(graylog_api_conf: dict, username: str):
+    # fall back to boot/startup date
+    boot_timestamp = str(get_boot_timestamp())
+    warning_msg = alertText + "Warning! No recenty acvitiy found for user " + blueText + str(username) + alertText + ". Using boot time as last activity." + defText
+    # boot_timestamp = None
+
     # get users
     r = doGraylogApi(graylog_api_conf, "get", "/api/users?include_permissions=false&include_sessions=true", {}, {}, {}, {}, 200, True)
     
     if not "json" in r:
-        return False
+        print(warning_msg)
+        return boot_timestamp
 
     if not "users" in r["json"]:
-        return False
+        print(warning_msg)
+        return boot_timestamp
     
     if not len(r["json"]["users"]):
-        return False
+        print(warning_msg)
+        return boot_timestamp
     
     for user_entry in r["json"]["users"]:
         entry_username = user_entry["username"]
         if entry_username.lower() == username.lower():
             # we got'em
             latest_activity = user_entry["last_activity"]
-            # print(latest_activity)
-            return latest_activity
-    
-    return False
+            if latest_activity:
+                return latest_activity
+            else:
+                print(warning_msg)
+                return boot_timestamp
+
+    print(warning_msg)
+    return boot_timestamp
 
 def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     # audit_entry = get_most_recent_activity_via_audit_log(graylog_api_conf)
@@ -416,8 +433,7 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     # audit_object = audit_entry["object"]
 
     timestamp_utc = get_most_recent_activity_via_user(graylog_api_conf, "admin")
-    # exit()
-    
+    # print(timestamp_utc)
     # exit()
     # timestamp_utc = r["json"]["entries"][0]["timestamp"]
 
@@ -442,9 +458,17 @@ def is_graylog_cluster_active(graylog_api_conf: dict, idle_threshold_sec: int):
     print("    " + blueText + str(delta_sec) + defText + "s ago. Threshold: " + str(idle_threshold_sec) + "s")
 
     if delta_sec > idle_threshold_sec:
-        return False
+        return {
+            "active": False,
+            "last_activity": str(timestamp_utc),
+            "last_acitivity_sec_ago": str(delta_sec)
+        }
     
-    return True
+    return {
+        "active": True,
+        "last_activity": str(timestamp_utc),
+        "last_acitivity_sec_ago": str(delta_sec)
+    }
 
     # print(json.dumps(r["json"]["entries"][0]["timestamp"], indent=4))
 
@@ -518,7 +542,10 @@ if not exists(strConfigFile):
 
 dict_config = yaml_to_dict(strConfigFile)
 graylog_api_conf_from_yaml = load_config_from_dict(dict_config, False)
-do_update_cluster_notification(graylog_api_conf_from_yaml, "Automatic shutdown warning!", "This cluster will automatically shutdown after 30 minutes of inactivity.", "https://graylogdocumentation.atlassian.net/wiki/spaces/SE/pages/2876145668/Graylog+Snapshot+testing+via+automated+AWS+instance")
+
+b_is_active_dict = is_graylog_cluster_active(graylog_api_conf_from_yaml, 1800)
+
+do_update_cluster_notification(graylog_api_conf_from_yaml, "Automatic shutdown warning!", "This cluster will automatically shutdown after 30 minutes of inactivity. Last activity: " + str(b_is_active_dict["last_activity"]) + " (" + str(b_is_active_dict["last_acitivity_sec_ago"]) + "s ago)", "https://graylogdocumentation.atlassian.net/wiki/spaces/SE/pages/2876145668/Graylog+Snapshot+testing+via+automated+AWS+instance")
 
 uptime_sec = get_uptime_sec()
 print("Uptime in seconds: " + blueText + str(uptime_sec) + defText)
@@ -548,7 +575,7 @@ if args.skip_uptime_check == False:
 
 print(alertText + "Graylog Server: " + graylog_api_conf_from_yaml['host'] + defText)
 
-b_is_active = is_graylog_cluster_active(graylog_api_conf_from_yaml, 1800)
+b_is_active = b_is_active_dict["active"]
 print("Is Graylog Cluster Active: " + blueText + str(b_is_active) + defText)
 
 if args.skip_graylog_active_check == True:
@@ -561,10 +588,10 @@ if b_is_active == False:
     # print(get_five_min_from_now)
     # exit()
     do_update_cluster_notification(graylog_api_conf_from_yaml, "Shutting down...", "This cluster will shut down at " + str(get_five_min_from_now) + " UTC", "https://graylogdocumentation.atlassian.net/wiki/spaces/SE/pages/2876145668/Graylog+Snapshot+testing+via+automated+AWS+instance")
-    if args.skip_sleep == False:
-        print("sleeping for " + blueText + "5m (300s)" + defText)
-        time.sleep(300)
     if args.confirm == True:
+        if args.skip_sleep == False:
+            print("sleeping for " + blueText + "5m (300s)" + defText)
+            time.sleep(300)
         shut_cmd = "shutdown -h now"
         print(errorText + "executing '" + blueText + str(shut_cmd) + defText)
         os.system(shut_cmd)
