@@ -1,0 +1,166 @@
+# cat list of indices
+# http://hplap.geek4u.net:9200/_cat/indices
+
+# count fields
+# curl -XGET ‘localhost:9200/graylog_2/?pretty’ | grep type | wc -l
+
+import requests, configparser, argparse, time, json, re, os, subprocess, urllib3, yaml
+from requests.auth import HTTPBasicAuth
+from os.path import exists
+
+parser = argparse.ArgumentParser(description="Just an example",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--api-url", help='ES/OS API URL. e.g. http://localhost:9200', default="http://localhost:9200", type=str, required=True)
+
+args = parser.parse_args()
+
+defText = "\033[0;30;50m"
+alertText = "\033[1;33;50m"
+errorText = "\033[1;31;50m"
+successText = "\033[1;32;50m"
+blueText = "\033[0;34;50m"
+
+print(defText)
+
+def mergeDict(dictOrig: dict, dictToAdd: dict, allowReplacements: bool):
+    for item in dictToAdd:
+        
+        bSet = True
+        if item in dictOrig:
+            if allowReplacements == False:
+                bSet = False
+        
+        if bSet == True:
+            dictOrig[item] = dictToAdd[item]
+    
+    return dictOrig
+
+def api_url_formatter(url: str):
+    if re.search("/$", str(url)):
+        return re.sub("/$", "", url)
+    return url
+
+def get_indices(url_base: str):
+    d_indices = {}
+    sUrl = url_base + "/_cat/indices?h=health,status,index,docs.count"
+    # print("Obtaining list of indices via '" + blueText + str(sUrl) + defText + "'")
+    sHeaders = {}
+    try:
+        r = requests.get(sUrl, headers=sHeaders)
+        # print(r.text)
+        if not int(r.status_code) == 200:
+            print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
+            exit(1)
+    except Exception as e:
+        print(r)
+        exit(1)
+    
+    lines = r.text.splitlines()
+    i = 1
+    for line in lines:
+        tmp_index_health = ""
+        tmp_index_status = ""
+        tmp_index = ""
+        tmp_index_doc_count = 0
+
+        # print(str(i) + ": " + str(line))
+        # print(line)
+        rs = re.search(r"^(\w+)\s+(\w+)\s+(\S+)\s+(\d+)$", str(line))
+        tmp_index_health = str(rs.group(1).strip())
+        tmp_index_status = str(rs.group(2).strip())
+        tmp_index = str(rs.group(3).strip())
+        tmp_index_doc_count = int(rs.group(4).strip())
+        
+        i = i + 1
+
+        if tmp_index_doc_count > 0 and tmp_index_health.lower() == "green":
+            d_indices[tmp_index] = {
+                "index": tmp_index,
+                "health": tmp_index_health,
+                "status": tmp_index_status,
+                "doc_count": tmp_index_doc_count
+            }
+        # break
+
+    return d_indices
+
+def get_fields_from_index(url_base: str, index: str):
+    list_index_fields = []
+
+    sUrl = url_base + "/" + str(index)
+    # print("Obtaining list of fields from index " + str(index) + " via '" + blueText + str(sUrl) + defText + "'")
+    sHeaders = {}
+    try:
+        r = requests.get(sUrl, headers=sHeaders)
+        # print(r.text)
+        if not int(r.status_code) == 200:
+            print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
+            exit(1)
+    except Exception as e:
+        print(r)
+    
+    rs_json = json.loads(r.text)
+    index_key = ""
+    for index_details in rs_json:
+        index_key = index_details
+        break
+
+    if not len(index_key):
+        return False
+
+    if not "mappings" in rs_json[index_key]:
+        return False
+
+    if not "properties" in rs_json[index_key]["mappings"]:
+        return False
+    
+    for field in rs_json[index_key]["mappings"]["properties"]:
+        # d_index_fields
+        # print(field)
+        # d_index_fields[index][field] = 1
+        list_index_fields.append(str(field))
+
+    # print(json.dumps(d_index_fields, indent=4))
+    # print(json.dumps(rs_json[index_key]["mappings"]["properties"], indent=4))
+    return list_index_fields
+
+def count_usage_of_field_in_index(url_base: str, index: str, field: str):
+    sUrl = url_base + "/" + index + "/_count/"
+    # print("Querying index " + str(index) + " to count usage of field " + str(field) + " via '" + blueText + str(sUrl) + defText + "'")
+    sHeaders = {"Accept":"application/json", "X-Requested-By":"python-requests"}
+    json_payload = {
+        "query": {
+            "exists": {
+                "field": field
+            }
+        }
+    }
+
+    try:
+        r = requests.get(sUrl, json = json_payload, headers=sHeaders)
+        # print(r.text)
+        if not int(r.status_code) == 200:
+            print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
+            exit(1)
+    except Exception as e:
+        print(e)
+    
+    rs_json = json.loads(r.text)
+    if "count" in rs_json:
+        return rs_json["count"]
+    
+    return 0
+
+print("API URL: '" + blueText + str(api_url_formatter(args.api_url))+ defText + "'")
+
+d_indices = get_indices(api_url_formatter(args.api_url))
+
+# print(json.dumps(d_indices, indent=4))
+
+for index in d_indices:
+    list_index_fields = get_fields_from_index(api_url_formatter(args.api_url), index)
+    for field in list_index_fields:
+        count = 0
+        # print(field)
+        count = count_usage_of_field_in_index(api_url_formatter(args.api_url), index, field)
+        print(str(index) + "," + str(field) + "," + str(count))
