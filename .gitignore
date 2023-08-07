@@ -22,3 +22,4 @@ Src/Graylog-Api-Automation-Tools/config-dev.yml
 Src/shutdown-graylog-inactive/config.dev.yml
 Src/shutdown-graylog-inactive/config.dev2.yml
 Src/Graylog-Api-Automation-Tools/config-snapshot.yml
+Src/Graylog-Api-Automation-Tools/config-*.yml
