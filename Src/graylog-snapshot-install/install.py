@@ -433,7 +433,7 @@ sedcmd = "sed -i 's/message_journal_dir = .*/message_journal_dir = \/var\/lib\/g
 os.system(sedcmd)
 
 # log dir
-print("create log dir")
+print("create log dir: " + blueText + "/var/log/graylog-server" + defText)
 os.system("mkdir -p /var/log/graylog-server/")
 
 # jvm defaults
@@ -442,8 +442,27 @@ print("copy jvm defaults file: " + blueText + "/etc/default/graylog-server" + de
 os.system("cp -f graylog-server-jvm-def /etc/default/graylog-server")
 
 # journal and data dirs
-print("create journal dir")
+print("create journal dir: " + blueText + "/var/lib/graylog-server/journal/" + defText)
 os.system("mkdir -p /var/lib/graylog-server/journal/")
+
+# check if we are missing bundled JVM
+bundled_jvm_target_path = "/usr/share/graylog-server/jvm"
+bundled_jvm_tgz = "gl-jvm.tar.gz"
+# NOTE: gl-jvm.tar.gz prepared with: `tar -czvf gl-jvm.tar.gz /usr/share/graylog-server/jvm`
+if not exists(bundled_jvm_target_path):
+    print(alertText + "WARNING! Graylog bundled JDK not found. '" + blueText + bundled_jvm_target_path + defText + "'")
+    # only attempt if bundled jdk tgz file exists
+    if exists(bundled_jvm_tgz):
+        print("Attempting to extract an offline copy of the bundled JDK")
+        # run command
+        os.system("tar -xzf gl-jvm.tar.gz --directory /")
+        # validate
+        if exists(bundled_jvm_target_path):
+            print(successText + "bundled JDK successfully extracted to '" + blueText + bundled_jvm_target_path + defText + "'")
+        else:
+            print(errorText + "failed to extract bundled JDK  to '" + blueText + bundled_jvm_target_path + defText + "'. Cannot continue. Fatal error.")
+            exit(1)
+
 
 # owners and permissions and cool stuff
 print("Set graylog as owner for all required folders:")
