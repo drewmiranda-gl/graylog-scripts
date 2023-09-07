@@ -8,11 +8,25 @@ import requests, configparser, argparse, time, json, re, os, subprocess, urllib3
 from requests.auth import HTTPBasicAuth
 from os.path import exists
 
+urllib3.disable_warnings()
+
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--api-url", help='ES/OS API URL. e.g. http://localhost:9200', default="http://localhost:9200", type=str, required=True)
+parser.add_argument("--verify", help="Verify HTTPS/TLS Cert", action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument("--username", help='', default="", type=str, required=False)
+parser.add_argument("--password", help='', default="", type=str, required=False)
 
 args = parser.parse_args()
+b_tls_verify = args.verify
+
+b_use_http_basic_auth = False
+arg_username = ""
+arg_password = ""
+if len(args.username) and len(args.password):
+    b_use_http_basic_auth = True
+    arg_username = str(args.username)
+    arg_password = str(args.password)
 
 defText = "\033[0;30;50m"
 alertText = "\033[1;33;50m"
@@ -45,8 +59,16 @@ def get_indices(url_base: str):
     sUrl = url_base + "/_cat/indices?h=health,status,index,docs.count"
     # print("Obtaining list of indices via '" + blueText + str(sUrl) + defText + "'")
     sHeaders = {}
+
+    args_for_req = {}
+    args_for_req["url"] = sUrl
+    args_for_req["headers"] = sHeaders
+    args_for_req["verify"] = b_tls_verify
+    if b_use_http_basic_auth == True:
+        args_for_req["auth"] = HTTPBasicAuth(arg_username, arg_password)
+
     try:
-        r = requests.get(sUrl, headers=sHeaders)
+        r = requests.get(**args_for_req)
         # print(r.text)
         if not int(r.status_code) == 200:
             print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
@@ -90,8 +112,16 @@ def get_fields_from_index(url_base: str, index: str):
     sUrl = url_base + "/" + str(index)
     # print("Obtaining list of fields from index " + str(index) + " via '" + blueText + str(sUrl) + defText + "'")
     sHeaders = {}
+
+    args_for_req = {}
+    args_for_req["url"] = sUrl
+    args_for_req["headers"] = sHeaders
+    args_for_req["verify"] = b_tls_verify
+    if b_use_http_basic_auth == True:
+        args_for_req["auth"] = HTTPBasicAuth(arg_username, arg_password)
+
     try:
-        r = requests.get(sUrl, headers=sHeaders)
+        r = requests.get(**args_for_req)
         # print(r.text)
         if not int(r.status_code) == 200:
             print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
@@ -136,8 +166,16 @@ def count_usage_of_field_in_index(url_base: str, index: str, field: str):
         }
     }
 
+    args_for_req = {}
+    args_for_req["url"] = sUrl
+    args_for_req["headers"] = sHeaders
+    args_for_req["json"] = json_payload
+    args_for_req["verify"] = b_tls_verify
+    if b_use_http_basic_auth == True:
+        args_for_req["auth"] = HTTPBasicAuth(arg_username, arg_password)
+
     try:
-        r = requests.get(sUrl, json = json_payload, headers=sHeaders)
+        r = requests.get(**args_for_req)
         # print(r.text)
         if not int(r.status_code) == 200:
             print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
