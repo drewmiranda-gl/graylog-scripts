@@ -31,6 +31,8 @@ parser.add_argument("--erase-opensearch", help="Erase graylog opensearch indexes
 parser.add_argument("--wait-for-opensearch", help="if script should wait until opensearch api is reachable", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--debug", help="debug stuff", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--skip-root-check", help="allow running as non root user.", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--test-wait-for-online", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--graylog-api-host", help="Graylog Snap .tgz file", required=False, default="127.0.0.1")
 
 args = parser.parse_args()
 
@@ -50,7 +52,7 @@ print(defText)
 
 dictGraylogApi = {
     "https": False,
-    "host": "127.0.0.1",
+    "host": str(args.graylog_api_host),
     "port": "9000",
     "user": "admin",
     "password": "admin"
@@ -194,6 +196,7 @@ def doGraylogApi(argMethod: str, argApiUrl: str, argHeaders: dict, argJson: dict
         sArgBuildUri=sArgBuildUri+sArgHost+":"+sArgPort
         
         sUrl = sArgBuildUri + argApiUrl
+        # print(sUrl)
 
         # add headers
         sHeaders = {"Accept":"application/json", "X-Requested-By":"python-ctpk-upl"}
@@ -252,40 +255,46 @@ def do_wait_until_online():
     iSocketRetries = 0
     iSocketInitialRetryBackOff = iSocketRetryWaitSec
 
+    print("do_wait_until_online")
+
+    import json
     while iSocketRetries < iSocketMaxRetries:
         if iSocketRetries > 0:
             print("Retry " + str(iSocketRetries) + " of " + str(iSocketMaxRetries))
 
         r = doGraylogApi("GET", "/api/", {}, {}, False, 200, True)
+
         if 'success' in r:
             if r['success'] == False:
                 if "exception" in r:
                     print(errorText)
                     print(r["exception"])
                     print(defText)
+                elif "status_code" in r:
+                    print(errorText + "HTTP Return Code: " + str(r["status_code"]) + defText)
 
-                    print("Waiting " + str(iSocketInitialRetryBackOff) + "s Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
-                    # sleep for X seconds
-                    time.sleep(iSocketInitialRetryBackOff)
+                print("Waiting " + str(iSocketInitialRetryBackOff) + "s (Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
+                # sleep for X seconds
+                time.sleep(iSocketInitialRetryBackOff)
 
-                    # Increment socket retry count
-                    iSocketRetries = iSocketRetries + 1
+                # Increment socket retry count
+                iSocketRetries = iSocketRetries + 1
 
-                    # If the number of retries exceeds the intial backoff retry grace count
-                    #   Don't apply backoff for the first X number of retries in case the error was short lived
-                    if iSocketRetries > iSocketRetryBackOffGraceCount:
-                        # if backoff value is less than max, keep adding backoff value to delay
-                        if iSocketInitialRetryBackOff < iSocketRetryBackOffMaxSec:
-                            iSocketInitialRetryBackOff = iSocketInitialRetryBackOff + iSocketRetryBackOffSec
+                # If the number of retries exceeds the intial backoff retry grace count
+                #   Don't apply backoff for the first X number of retries in case the error was short lived
+                if iSocketRetries > iSocketRetryBackOffGraceCount:
+                    # if backoff value is less than max, keep adding backoff value to delay
+                    if iSocketInitialRetryBackOff < iSocketRetryBackOffMaxSec:
+                        iSocketInitialRetryBackOff = iSocketInitialRetryBackOff + iSocketRetryBackOffSec
 
-                        # if backoff value exceeds max, set to max
-                        if iSocketInitialRetryBackOff > iSocketRetryBackOffMaxSec:
-                            iSocketInitialRetryBackOff = iSocketRetryBackOffMaxSec
+                    # if backoff value exceeds max, set to max
+                    if iSocketInitialRetryBackOff > iSocketRetryBackOffMaxSec:
+                        iSocketInitialRetryBackOff = iSocketRetryBackOffMaxSec
 
-                    # If socket retries exceeds max, exit script
-                    if iSocketRetries > iSocketMaxRetries:
-                        print("ERROR! To many socket retries")
-                        return False
+                # If socket retries exceeds max, exit script
+                if iSocketRetries > iSocketMaxRetries:
+                    print("ERROR! To many socket retries")
+                    return False
 
             elif r['success'] == True:
                 print(successText + "Graylog Cluster is Online" + defText)
@@ -353,6 +362,9 @@ def erase_opensearch():
         x = requests.delete('http://127.0.0.1:9200/_all')
         print(x.text)
 
+if args.test_wait_for_online == True:
+    do_wait_until_online()
+
 print(alertText + "Stopping " + blueText + "graylog-server" + defText)
 os.system("systemctl stop graylog-server")
 
@@ -364,6 +376,13 @@ if args.erase_mongodb == True:
 print("Erase opensearch indexes: " + str(args.erase_opensearch))
 if args.erase_opensearch == True:
     erase_opensearch()
+
+# 0. Cleanup ???? - https://go2docs.graylog.org/5-1/setting_up_graylog/default_file_locations.html
+# /var/lib/graylog-server
+# /var/log/graylog-server
+# /usr/share/graylog-server
+# /etc/default/graylog-server
+# 
 
 # 1. Extract .tgz and get path
 
@@ -413,6 +432,11 @@ os.system(sedcmd)
 # bind to 0.0.0.0
 print("    bind to " + blueText + "0.0.0.0:9000" + defText)
 sedcmd = "sed -i 's/#http_bind_address = 127.0.0.1.*/http_bind_address = 0.0.0.0:9000/g' /etc/graylog/server/server.conf"
+os.system(sedcmd)
+
+# elasticsearch_hosts
+print("    set elasticsearch_hosts" + blueText + "http://127.0.0.1:9200" + defText)
+sedcmd = "sed -i 's/#elasticsearch_hosts = .*/elasticsearch_hosts = http\:\/\/127.0.0.1\:9200/g' /etc/graylog/server/server.conf"
 os.system(sedcmd)
 
 # set paths
