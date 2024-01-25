@@ -1,0 +1,6 @@
+graylog:
+    gelf_http:
+        host: "192.168.0.86"
+        port: 12201
+    static_fields:
+        message: "log-http-to-graylog"

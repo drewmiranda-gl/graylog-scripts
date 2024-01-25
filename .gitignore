@@ -24,3 +24,4 @@ Src/shutdown-graylog-inactive/config.dev2.yml
 Src/Graylog-Api-Automation-Tools/config-snapshot.yml
 Src/Graylog-Api-Automation-Tools/config-*.yml
 Src/ES-OS-Count-Field-Usage/field_usage.csv
+Src/log-http-req-to-graylog/run.log

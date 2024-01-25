@@ -1,0 +1,30 @@
+sources:
+    prom_hvac:
+        enabled: True
+        url: "http://grafana.drew.local:9090/api/v1/query?query=sum_over_time%28hass_climate_action%7Bentity%3D%22climate.living_room%22%2C+action%3D~%22heating%22%7D%5B1h%5D%29"
+        base_start: data
+        flatten: True
+        interval_m: 60
+        rename_fields:
+            field_old: "field_new"
+        json_path: "$.data"
+        field_types:
+            result_0_value_1: "int"
+        remove_fields:
+            - "resultType"
+            - "result_0_value_0"
+    prom_enegery_mon_plug:
+        enabled: True
+        url: "http://grafana.drew.local:9090/api/v1/query?query=avg_over_time%28hass_sensor_power_w%7Bdomain%3D%22sensor%22%7D%5B1h%5D%29"
+        base_start: data.result
+        flatten: False
+        interval_m: 60
+        field_types:
+            value_1: "float"
+        rename_fields:
+            value_1: "watts_float"
+        json_path: "$.data.result"
+        each_list_separate_log: True
+        flatten_each_list_separate_log: True
+        remove_fields:
+            - "value_0"
