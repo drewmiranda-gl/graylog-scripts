@@ -313,9 +313,9 @@ def do_wait_for_indexer():
         if 'success' in r:
             if r['success'] == False:
                 # if "exception" in r:
+                print(errorText + "Cannot reach OpenSearch!" + defText + " Waiting " + str(iSocketInitialRetryBackOff) + "s (Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
                 print(errorText + str(r["exception"]) + defText)
 
-                print("Cannot reach OpenSearch! Waiting " + str(iSocketInitialRetryBackOff) + "s (Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
                 # sleep for X seconds
                 time.sleep(iSocketInitialRetryBackOff)
 
