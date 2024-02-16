@@ -164,11 +164,24 @@ def set_type_helper(type_set_set, data):
     else:
         return data
 
-def publish_gelf(s_source_url: str, d_json_payload: dict, d_source_config: dict):
+def publish_gelf(s_source_url: str, d_json_payload: dict, d_source_config: dict, source_rule: str):
     d_json_payload["host"] = host_hostname
     d_json_payload["source_url"] = s_source_url
+    d_json_payload["rule"] = source_rule
     for static_field_key in d_graylog_static_fields:
         d_json_payload[static_field_key] = d_graylog_static_fields[static_field_key]
+
+    if "ignore_rules" in d_source_config:
+        for ignore_rule in d_source_config["ignore_rules"]:
+            val_to_compare = ""
+            val_to_compare = d_json_payload[ignore_rule]
+
+            logging.debug(ignore_rule)
+            logging.debug(val_to_compare)
+
+            if re.match(d_source_config["ignore_rules"][ignore_rule], val_to_compare):
+                logging.debug("".join(["ignore_rule = ", val_to_compare, ": ", d_source_config["ignore_rules"][ignore_rule]]))
+                return False
 
     if "field_types" in d_source_config:
         for field_typing in d_source_config["field_types"]:
@@ -280,7 +293,7 @@ def read_sources(get_sources: dict):
                             b_each_list_separate_log = True
 
                     if b_each_list_separate_log == False:
-                        publish_gelf(source_url, processed_json, d_source_data)
+                        publish_gelf(source_url, processed_json, d_source_data, source)
                     else:
                         logging.debug("Each item in list will be logged separately")
                         if "flatten_each_list_separate_log" in d_source_data:
@@ -292,7 +305,7 @@ def read_sources(get_sources: dict):
                             else:
                                 flat_json = json_item
                             # logging.debug(json_item)
-                            publish_gelf(source_url, flat_json, d_source_data)
+                            publish_gelf(source_url, flat_json, d_source_data, source)
             else:
                 logging.error("".join(["Invalid config for: ", source, ". MUST have a `url` property"]))
         else:

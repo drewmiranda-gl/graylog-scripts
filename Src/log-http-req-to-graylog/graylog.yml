@@ -4,3 +4,4 @@ graylog:
         port: 12201
     static_fields:
         message: "log-http-to-graylog"
+        tag: "log-http-to-graylog"

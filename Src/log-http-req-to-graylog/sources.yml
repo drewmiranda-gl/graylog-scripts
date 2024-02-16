@@ -28,3 +28,5 @@ sources:
         flatten_each_list_separate_log: True
         remove_fields:
             - "value_0"
+        ignore_rules: #regex rules to ignore
+            metric_entity: '^sensor\.wiz'
