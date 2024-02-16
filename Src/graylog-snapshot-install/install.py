@@ -414,9 +414,8 @@ print("Building config " + blueText + "server.conf" + defText)
 os.system("mkdir -p /etc/graylog/server/")
 os.system("cp -f server.conf /etc/graylog/server/server.conf")
 
-deleteIfExists("log4j2.xml", False)
 print("Downloading latest " + blueText + "log4j2.xml" + defText + " via github")
-os.system("wget https://raw.githubusercontent.com/Graylog2/graylog2-server/master/graylog2-server/src/main/resources/log4j2.xml")
+os.system("wget https://raw.githubusercontent.com/Graylog2/graylog2-server/master/graylog2-server/src/main/resources/log4j2.xml -O log4j2.xml")
 os.system("cp -f log4j2.xml /etc/graylog/server/log4j2.xml")
 
 # admin pw
