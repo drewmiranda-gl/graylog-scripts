@@ -307,17 +307,15 @@ def do_wait_for_indexer():
 
     while iSocketRetries < iSocketMaxRetries:
         if iSocketRetries > 0:
-            print("Retry " + str(iSocketRetries) + " of " + str(iSocketMaxRetries))
+            print("OpenSearch Retry " + str(iSocketRetries) + " of " + str(iSocketMaxRetries))
 
         r = do_opensearch_api("GET", "", {}, {}, False, 200, True)
         if 'success' in r:
             if r['success'] == False:
                 # if "exception" in r:
-                print(errorText)
-                print(r["exception"])
-                print(defText)
+                print(errorText + str(r["exception"]) + defText)
 
-                print("Waiting " + str(iSocketInitialRetryBackOff) + "s (Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
+                print("Cannot reach OpenSearch! Waiting " + str(iSocketInitialRetryBackOff) + "s (Max backoff: " + str(iSocketRetryBackOffMaxSec) + "s)...")
                 # sleep for X seconds
                 time.sleep(iSocketInitialRetryBackOff)
 
@@ -355,7 +353,7 @@ def erase_opensearch():
     print(alertText + "Deleting OpenSearch indices " + blueText + "_all" + defText)
     
     if args.wait_for_opensearch == True:
-        print(alertText + "waiting until graylog-server is online..." + defText)
+        print(alertText + "waiting until OpenSearch is online..." + defText)
         do_wait_for_indexer()
 
     if args.debug == False:
