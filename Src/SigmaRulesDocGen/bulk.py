@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(description="Just an example",
 parser.add_argument("--debug", "-d", help="For debugging", action=argparse.BooleanOptionalAction)
 parser.add_argument("--config", help="Config Filename", default="config.ini")
 parser.add_argument("--verbose", help="Verbose output.", action=argparse.BooleanOptionalAction, default=False)
-parser.add_argument("--function", help="Type of operation/function to do [delete]", required=True)
+parser.add_argument("--function", help="Type of operation/function to do [delete]",choices=['delete'], required=True)
 parser.add_argument("--file", help="File to use for bulk operation", required=True)
 
 args = parser.parse_args()
@@ -133,7 +133,7 @@ def doDeleteRulesByIds(argFileWithIds):
     if exists(argFileWithIds):
         raw = open(argFileWithIds).read()
         listIds = convertIdsOnePerLineToList(raw)
-        # print(listIds)
+        print(listIds)
         doHttpToDeleteRulesByIdList(listIds)
     else:
         print(errorText + "ERROR! File " + argFileWithIds + " does not exist!" + defText)

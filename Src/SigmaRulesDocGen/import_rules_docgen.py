@@ -6,6 +6,9 @@ import requests
 from requests.auth import HTTPBasicAuth
 import configparser
 from os.path import exists
+import urllib3
+urllib3.disable_warnings()
+
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -132,6 +135,7 @@ def doImportSigmaRulesUsingList(argList, argListItemCount):
             # using import via Github API
             # specify URL
             sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules/import"
+            
             # headers
             sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
             # send req, upload json content pack file
@@ -158,7 +162,9 @@ def doImportSigmaRulesUsingList(argList, argListItemCount):
             # =====================================================================
             # upload file
             # specify URL
-            sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules"
+            # sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules"
+            sUrl = "".join([sArgBuildUri, "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules/upload"])
+
             # headers
             sHeaders = {"Accept":"application/json", "X-Requested-By":"python"}
 
@@ -175,6 +181,13 @@ def doImportSigmaRulesUsingList(argList, argListItemCount):
                     "source": raw
                 }
                 # print(oJson)
+
+                multipart_form_data = {
+                    'upload': ('custom_file_name.zip', open('myfile.zip', 'rb')),
+                    'action': (None, 'store'),
+                    'path': (None, '/path1')
+                }
+
                 r = requests.post(sUrl, json = oJson, headers=sHeaders, verify=False, auth=HTTPBasicAuth(sArgUser, sArgPw))
                 # print("Status Code: " + str(r.status_code))
                 # print(r.text)

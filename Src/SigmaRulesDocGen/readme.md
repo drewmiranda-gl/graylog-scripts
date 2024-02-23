@@ -303,3 +303,20 @@ output is saved to `sigma_fields.csv`
 ```
   --dir DIR             Directory of sigma rules (default: rules)
 ```
+
+# bulk.py
+
+Used to build delete sigma rules. Accepts list IDs output via `export_rule_queries.py --function ids`
+
+## Prerequisites
+
+* Python 3 (tested on 3.9.13)
+* Configure contents of config.ini (see other sections of this readme)
+
+## Instructions
+
+Obtain a list of existing sigma rule ids:
+* `python3 export_rule_queries.py --function ids --config config.ini`
+
+Delete sigma rules using list of sigma rule IDs in `ids.txt`:
+* `python3 bulk.py --config config.ini --file ids.txt`

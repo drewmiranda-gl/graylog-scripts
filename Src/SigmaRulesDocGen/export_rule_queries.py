@@ -8,7 +8,10 @@ import configparser
 from os.path import exists
 import math
 import yaml
-import urllib.parse, urllib3
+import urllib.parse
+import urllib3
+import shutil
+import os
 
 # Disable HTTPS/TLS certificate warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -23,6 +26,7 @@ parser.add_argument("--startpage", help="Start Page. Graylog Sigma Rules page to
 parser.add_argument("--endpage", help="End Page. Graylog Sigma Rules page to end with. Useful to limit how many rules are exported at a given time.", default=10000)
 parser.add_argument("--function", help="[markdown|ids] Type of operation/function to do. Markdown exports markdown files. IDs outputs a list of graylog IDs for each sigma rule, one per line. IDs are helpful for doing bulk deletes.", default="markdown")
 parser.add_argument("--delete", help="Deletes existing markdown files (if present) before exporting rules to markdown.", action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument("--export-file", help="file to export output to.", default="ids.txt")
 
 args = parser.parse_args()
 configFromArg = vars(args)
@@ -112,6 +116,14 @@ sArgBuildUri=sArgBuildUri+sArgHost+":"+sArgPort
 
 # print("Graylog Server: " + sArgHost)
 print(alertText + "Target Graylog Server: " + successText + sArgHost + defText)
+
+def deleteIfExists(argPath, bIsFolder: bool):
+    if bIsFolder == True:
+        if exists(argPath):
+            shutil.rmtree(argPath)
+    else:
+        if exists(argPath):
+            os.remove(argPath)
 
 def buildUrl(iArgPage, iArgPerPage):
     sUrl = sArgBuildUri + "/api/plugins/org.graylog.plugins.securityapp.sigma/sigma/rules?page=" + str(iArgPage) +"&per_page=" + str(iArgPerPage) +"&sort=parsed_rule.title&direction=asc"
@@ -407,7 +419,14 @@ def doExportRuleQueries():
         exit()
 
 def generateRuleIds(sArgRules):
+    s_ids_file = args.export_file
+    deleteIfExists(s_ids_file, False)
     for rule in sArgRules:
+
+        f = open(s_ids_file, "a")
+        writeToFile(f, rule)
+        f.close()
+
         print(rule)
 
 def devCategorizeRules():
