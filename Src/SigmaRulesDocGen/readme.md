@@ -71,7 +71,7 @@ python3 export_rule_queries.py
 Specify a custom configuration filename. This is useful if you don't want your config file to conflict with the template/default config file from this repo.
 
 ```
-python3 import_rules_docgen.py --config auth.ini
+python3 export_rule_queries.py --config auth.ini
 ```
 
 ## Command Line Arguments
@@ -224,7 +224,7 @@ output is saved to `sigma_fields.csv`
 
 # bulk.py
 
-Used to build delete sigma rules. Accepts list IDs output via `export_rule_queries.py --function ids`
+Used to build delete sigma rules. Accepts list IDs output via `bulk.py --function delete`
 
 ## Prerequisites
 
@@ -234,7 +234,7 @@ Used to build delete sigma rules. Accepts list IDs output via `export_rule_queri
 ## Instructions
 
 Obtain a list of existing sigma rule ids:
-* `python3 export_rule_queries.py --function ids --config config.ini`
+* `python3 bulk.py --function ids --config config.ini`
 
 Delete sigma rules using list of sigma rule IDs in `ids.txt`:
 * `python3 bulk.py --config config.ini --file ids.txt`
