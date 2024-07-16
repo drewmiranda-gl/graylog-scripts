@@ -1,0 +1,35 @@
+sources:
+  mvneta0:
+    enabled: True
+    http_uri: "http://pve-dock-pf-es.drew.local:9201"
+    json_payload: {
+        "query": {
+            "bool" : {
+                "must": [
+                    {"term" : {"measurement_name": "net"}},
+                    {"term" : {"tag.interface": "mvneta0"}}
+                ]
+            }
+        },
+        "size": 1,
+        "sort" : [
+            { "@timestamp" : "desc" }
+        ]
+    }
+  mvneta1:
+    enabled: True
+    http_uri: "http://pve-dock-pf-es.drew.local:9201"
+    json_payload: {
+        "query": {
+            "bool" : {
+                "must": [
+                    {"term" : {"measurement_name": "net"}},
+                    {"term" : {"tag.interface": "mvneta1"}}
+                ]
+            }
+        },
+        "size": 1,
+        "sort" : [
+            { "@timestamp" : "desc" }
+        ]
+    }
