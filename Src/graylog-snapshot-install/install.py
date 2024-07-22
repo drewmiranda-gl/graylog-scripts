@@ -39,6 +39,9 @@ parser.add_argument("--debug", help="debug stuff", action=argparse.BooleanOption
 parser.add_argument("--skip-root-check", help="allow running as non root user.", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--test-wait-for-online", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--graylog-api-host", help="Graylog Snap .tgz file", required=False, default="127.0.0.1")
+parser.add_argument("--install-opensearch", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--install-mongod", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--install-openjdk", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
@@ -372,8 +375,19 @@ def erase_opensearch():
 if args.test_wait_for_online == True:
     do_wait_until_online()
 
-print(alertText + "Stopping " + blueText + "graylog-server" + defText)
-os.system("systemctl stop graylog-server")
+if args.install_openjdk == True:
+    print("Installing OpenJDK... (This may take a minute...)")
+    exec_w_stdout("bash install_openjdk.sh", True, True)
+
+if args.install_opensearch == True:
+    print("Installing OpenSearch... (This will take a couple of minutes...)")
+    exec_w_stdout("bash install_opensearch_2.sh", True, True)
+
+if args.install_mongod == True:
+    print("Installing Mongod... (This may take a minute...)")
+    exec_w_stdout("bash install_mongod.sh", True, True)
+    print("Sleeping for 10s to allow mongod time to fully boot...")
+    time.sleep(10)
 
 # prelim whatever
 print("Erase graylog mongo db: " + str(args.erase_mongodb))
