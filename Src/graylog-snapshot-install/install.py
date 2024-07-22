@@ -714,7 +714,7 @@ os.system("timedatectl set-timezone UTC")
 print("Enabling service: " + blueText + "graylog-server" + defText)
 os.system("systemctl enable graylog-server")
 print("Starting service: " + blueText + "graylog-server" + defText)
-os.system("systemctl start graylog-server")
+os.system("systemctl restart graylog-server")
 
 print(alertText + "waiting until graylog-server is online..." + defText)
 do_wait_until_online()
