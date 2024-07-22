@@ -19,7 +19,13 @@
 # 5. create service
 # 
 
-import argparse, shutil, os, requests, time, json, subprocess
+import argparse
+import shutil
+import os
+import requests
+import time
+import json
+import subprocess
 from os.path import exists
 from requests.auth import HTTPBasicAuth
 
