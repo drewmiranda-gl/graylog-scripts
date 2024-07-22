@@ -547,6 +547,23 @@ if args.install_mongod == True:
     print("Sleeping for 10s to allow mongod time to fully boot...")
     time.sleep(10)
 
+# =============================================================================
+# 0. get needed files
+
+# graylog-server-jvm-def
+download_file_via_github("https://raw.githubusercontent.com/Graylog2/fpm-recipes/6.0/recipes/graylog-server/files/environment", "graylog-server-jvm-def")
+download_file_via_github("https://raw.githubusercontent.com/Graylog2/fpm-recipes/6.0/recipes/graylog-server/files/graylog-server.sh", "graylog-server")
+download_file_via_github("https://raw.githubusercontent.com/Graylog2/fpm-recipes/6.0/recipes/graylog-server/files/systemd.service", "graylog-server.service")
+download_file_via_github("https://raw.githubusercontent.com/Graylog2/fpm-recipes/6.0/recipes/graylog-server/files/log4j2.xml", "log4j2.xml")
+download_file_via_github("https://raw.githubusercontent.com/Graylog2/graylog2-server/master/misc/graylog.conf", "server.conf")
+download_file_via_github("https://raw.githubusercontent.com/Graylog2/fpm-recipes/6.0/recipes/graylog-server/patches/graylog-server.conf.patch", "graylog-server.conf.patch")
+patch_file("server.conf", "graylog-server.conf.patch")
+
+# =============================================================================
+
+# print(alertText + "Stopping " + blueText + "graylog-server" + defText)
+# os.system("systemctl stop graylog-server")
+
 # prelim whatever
 print("Erase graylog mongo db: " + str(args.erase_mongodb))
 if args.erase_mongodb == True:
@@ -599,8 +616,8 @@ print("Building config " + blueText + "server.conf" + defText)
 os.system("mkdir -p /etc/graylog/server/")
 os.system("cp -f server.conf /etc/graylog/server/server.conf")
 
-print("Downloading latest " + blueText + "log4j2.xml" + defText + " via github")
-os.system("wget https://raw.githubusercontent.com/Graylog2/graylog2-server/master/graylog2-server/src/main/resources/log4j2.xml -O log4j2.xml")
+# print("Downloading latest " + blueText + "log4j2.xml" + defText + " via github")
+# os.system("wget https://raw.githubusercontent.com/Graylog2/graylog2-server/master/graylog2-server/src/main/resources/log4j2.xml -O log4j2.xml")
 os.system("cp -f log4j2.xml /etc/graylog/server/log4j2.xml")
 
 # admin pw
