@@ -88,6 +88,9 @@ def deleteIfExists(argPath, bIsFolder):
     if bIsFolder == True:
         if exists(argPath):
             shutil.rmtree(argPath)
+    else:
+        if exists(argPath):
+            os.remove(argPath)
 
 def listdirs(folder):
     return [d for d in os.listdir(folder) if os.path.isdir(os.path.join(folder, d))]
