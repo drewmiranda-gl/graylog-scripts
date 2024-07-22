@@ -28,10 +28,11 @@ import json
 import subprocess
 from os.path import exists
 from requests.auth import HTTPBasicAuth
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--tgz", help="Graylog Snap .tgz file", required=True)
+parser.add_argument("--tgz", help="Graylog Snap .tgz file. Hint: use download to automatically download the latest.", required=True)
 parser.add_argument("--erase-mongodb", help="Erase graylog mongodb database", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--erase-opensearch", help="Erase graylog opensearch indexes", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--wait-for-opensearch", help="if script should wait until opensearch api is reachable", action=argparse.BooleanOptionalAction, default=False)
@@ -42,8 +43,11 @@ parser.add_argument("--graylog-api-host", help="Graylog Snap .tgz file", require
 parser.add_argument("--install-opensearch", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--install-mongod", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--install-openjdk", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--overwrite-download", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
+
+graylog_snapshot_tgz_file = str(args.tgz)
 
 # font
 #                       Style
@@ -372,6 +376,160 @@ def erase_opensearch():
         x = requests.delete('http://127.0.0.1:9200/_all')
         print(x.text)
 
+def download_file_via_github(arg_url, arg_out_file):
+    print("Downloading latest: " + blueText + arg_out_file + defText + " (via github)")
+    deleteIfExists(arg_out_file, False)
+    os.system("wget --quiet " + arg_url + " -O " + arg_out_file)
+    if not exists(arg_out_file):
+        print(errorText + "ERROR: Failed to download '" + arg_out_file + "'. Cannot continue." + defText)
+        exit(2)
+    return ""
+
+def patch_file(arg_source_file, arg_patch_file):
+    # os.system("patch server.conf < graylog-server.conf.patch")
+    
+    # "patch server.conf < graylog-server.conf.patch"
+    proc = subprocess.Popen(["".join(["patch ", arg_source_file, " < ", arg_patch_file])], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    raw_out = out.strip().decode()
+    
+    raw_err = ""
+    if err:
+        raw_err = err.strip().decode()
+
+    if proc.returncode == 0:
+        print(successText + raw_out + defText)
+    else:
+        print(errorText + raw_err + defText)
+        exit(1)
+
+def exec_w_stdout(arg_cmd: str, exit_on_err: bool, suppress_output: bool):
+    proc = subprocess.Popen([arg_cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    (out, err) = proc.communicate()
+    raw_out = out.strip().decode()
+    
+    raw_err = ""
+    if err:
+        raw_err = err.strip().decode()
+
+    if proc.returncode == 0:
+        if suppress_output == False:
+            print(successText + raw_out + defText)
+        else:
+            print(successText + "Success (" + str(proc.returncode) + ")" + defText)
+    else:
+        print(errorText + raw_err + defText)
+        if exit_on_err == True:
+            exit(1)
+    return ""
+
+def get_download_url_from_downloads_graylog_org(build_artifact: str):
+    url = "https://downloads.graylog.org/nightly-builds?limit=1&artifacts=" + build_artifact
+    response = requests.get(url)
+
+    if not response:
+        print("ERROR, no 'response'")
+        exit(1)
+    
+    if not int(response.status_code) == 200:
+        print("ERROR, HTTP Status: " + str(response.status_code))
+        exit(1)
+    
+    json_obj = json.loads(response.text)
+
+    if not "artifacts" in json_obj:
+        print("ERROR, artifacts not found in json response")
+        exit(1)
+    
+    if not len(json_obj['artifacts']):
+        print("ERROR, 0 not found in json_obj['artifacts']")
+        exit(1)
+
+    return json_obj['artifacts'][0]
+
+def do_download_build_from_downloads_graylog_org(build_artifact: str, overwrite: bool):
+    json_artifact = get_download_url_from_downloads_graylog_org(build_artifact)
+    url_to_download = json_artifact['url']
+    local_filename = json_artifact['filename']
+    print("Attempting to download build " + blueText + url_to_download + defText)
+    
+    if overwrite == False:
+        if exists(local_filename):
+            print(alertText + "NOTE: Use --overwrite-download to force skipped file to be downloaded." + defText)
+            print(successText + "Skipping file because already downloaded: " + blueText + local_filename + defText)
+            return local_filename
+
+    url = url_to_download
+    # Streaming, so we can iterate over the response.
+    response = requests.get(url, stream=True)
+    total_size_in_bytes= int(response.headers.get('content-length', 0))
+    block_size = 1024 #1 Kibibyte
+    progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
+    with open(local_filename, 'wb') as file:
+        for data in response.iter_content(block_size):
+            progress_bar.update(len(data))
+            file.write(data)
+    progress_bar.close()
+    if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+        print("ERROR, something went wrong")
+    
+    print(successText + "Downloaded file successfully: " + blueText + local_filename + defText)
+    return local_filename
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if args.test_wait_for_online == True:
     do_wait_until_online()
 
@@ -405,13 +563,17 @@ if args.erase_opensearch == True:
 # /etc/default/graylog-server
 # 
 
+# =============================================================================
 # 1. Extract .tgz and get path
+if str(args.tgz).lower() == "download" :
+    print("Downloading latest Graylog snapshot...")
+    graylog_snapshot_tgz_file = do_download_build_from_downloads_graylog_org("graylog-enterprise-linux-x64", args.overwrite_download)
 
-if not exists(args.tgz):
-    print(errorText + "ERROR! snapshot tgz file " + blueText + str(args.tgz) + errorText + " does not exist!" + defText)
+if not exists(graylog_snapshot_tgz_file):
+    print(errorText + "ERROR! snapshot tgz file " + blueText + str(graylog_snapshot_tgz_file) + errorText + " does not exist!" + defText)
     exit(1)
 
-extracted_path = extract(args.tgz)
+extracted_path = extract(graylog_snapshot_tgz_file)
 # extracted_path = "./extract/graylog-5.1.0-SNAPSHOT-20230331094000-linux-x64"
 # print("Extracted Path: " + extracted_path)
 
