@@ -217,7 +217,6 @@ def count_usage_of_field_in_index(url_base: str, index: str, field: str):
 print("API URL: '" + blueText + str(api_url_formatter(args.api_url))+ defText + "'")
 
 d_indices = get_indices(api_url_formatter(args.api_url))
-exit(0)
 # print(json.dumps(d_indices, indent=4))
 
 for index in d_indices:
