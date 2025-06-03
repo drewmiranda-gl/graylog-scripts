@@ -18,9 +18,11 @@ parser.add_argument("--username", help='If using HTTP Basic Auth, username to au
 parser.add_argument("--password", help='If using HTTP Basic Auth, password to auth with', default="", type=str, required=False)
 parser.add_argument("--cert", help='Client Certificate Auth: cert file (.crt)', default="", type=str, required=False)
 parser.add_argument("--key", help='Client Certificate Auth: key file (.key)', default="", type=str, required=False)
+parser.add_argument("--warm", help="Include Warm Tier.", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 b_tls_verify = args.verify
+b_include_warm_tier_indices = args.warm
 
 b_use_http_basic_auth = False
 arg_username = ""
@@ -82,7 +84,6 @@ def get_indices(url_base: str):
 
     try:
         r = requests.get(**args_for_req)
-        print(r.text)
         if not int(r.status_code) == 200:
             print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
             exit(1)
@@ -109,12 +110,19 @@ def get_indices(url_base: str):
         i = i + 1
 
         if tmp_index_doc_count > 0 and tmp_index_health.lower() == "green":
-            d_indices[tmp_index] = {
-                "index": tmp_index,
-                "health": tmp_index_health,
-                "status": tmp_index_status,
-                "doc_count": tmp_index_doc_count
-            }
+            b_include_this_index = True
+
+            if b_include_warm_tier_indices == False:
+                if re.search(r"_warm_\d+$", str(tmp_index)):
+                    b_include_this_index = False
+
+            if b_include_this_index == True:
+                d_indices[tmp_index] = {
+                    "index": tmp_index,
+                    "health": tmp_index_health,
+                    "status": tmp_index_status,
+                    "doc_count": tmp_index_doc_count
+                }
         # break
 
     return d_indices
@@ -209,7 +217,7 @@ def count_usage_of_field_in_index(url_base: str, index: str, field: str):
 print("API URL: '" + blueText + str(api_url_formatter(args.api_url))+ defText + "'")
 
 d_indices = get_indices(api_url_formatter(args.api_url))
-
+exit(0)
 # print(json.dumps(d_indices, indent=4))
 
 for index in d_indices:
