@@ -28,3 +28,5 @@ Src/log-http-req-to-graylog/run.log
 Src/SigmaRulesDocGen/rules_test/*
 Src/log-es-to-prom-export/out.txt
 Src/log-es-to-prom-export/run.log
+Src/ES-OS-Count-Field-Usage/cert.crt
+Src/ES-OS-Count-Field-Usage/cert.key
