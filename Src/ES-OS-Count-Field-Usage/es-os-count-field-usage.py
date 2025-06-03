@@ -14,8 +14,10 @@ parser = argparse.ArgumentParser(description="Just an example",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--api-url", help='ES/OS API URL. e.g. http://localhost:9200', default="http://localhost:9200", type=str, required=True)
 parser.add_argument("--verify", help="Verify HTTPS/TLS Cert", action=argparse.BooleanOptionalAction, default=True)
-parser.add_argument("--username", help='', default="", type=str, required=False)
-parser.add_argument("--password", help='', default="", type=str, required=False)
+parser.add_argument("--username", help='If using HTTP Basic Auth, username to auth with', default="", type=str, required=False)
+parser.add_argument("--password", help='If using HTTP Basic Auth, password to auth with', default="", type=str, required=False)
+parser.add_argument("--cert", help='Client Certificate Auth: cert file (.crt)', default="", type=str, required=False)
+parser.add_argument("--key", help='Client Certificate Auth: key file (.key)', default="", type=str, required=False)
 
 args = parser.parse_args()
 b_tls_verify = args.verify
@@ -27,6 +29,15 @@ if len(args.username) and len(args.password):
     b_use_http_basic_auth = True
     arg_username = str(args.username)
     arg_password = str(args.password)
+
+b_use_client_cert_auth = False
+arg_cert_cert = ""
+arg_cert_key = ""
+if len(args.cert) and len(args.key):
+    b_use_http_basic_auth = False
+    b_use_client_cert_auth = True
+    arg_cert_cert = str(args.cert)
+    arg_cert_key = str(args.key)
 
 defText = "\033[0;30;50m"
 alertText = "\033[1;33;50m"
@@ -66,15 +77,17 @@ def get_indices(url_base: str):
     args_for_req["verify"] = b_tls_verify
     if b_use_http_basic_auth == True:
         args_for_req["auth"] = HTTPBasicAuth(arg_username, arg_password)
+    if b_use_client_cert_auth == True:
+        args_for_req["cert"] = (arg_cert_cert, arg_cert_key)
 
     try:
         r = requests.get(**args_for_req)
-        # print(r.text)
+        print(r.text)
         if not int(r.status_code) == 200:
             print(errorText + "ERROR! Expected HTTP status 200, but instead received "  + str(r.status_code) + defText)
             exit(1)
     except Exception as e:
-        print(r)
+        print(e)
         exit(1)
     
     lines = r.text.splitlines()
@@ -119,6 +132,8 @@ def get_fields_from_index(url_base: str, index: str):
     args_for_req["verify"] = b_tls_verify
     if b_use_http_basic_auth == True:
         args_for_req["auth"] = HTTPBasicAuth(arg_username, arg_password)
+    if b_use_client_cert_auth == True:
+        args_for_req["cert"] = (arg_cert_cert, arg_cert_key)
 
     try:
         r = requests.get(**args_for_req)
@@ -173,6 +188,8 @@ def count_usage_of_field_in_index(url_base: str, index: str, field: str):
     args_for_req["verify"] = b_tls_verify
     if b_use_http_basic_auth == True:
         args_for_req["auth"] = HTTPBasicAuth(arg_username, arg_password)
+    if b_use_client_cert_auth == True:
+        args_for_req["cert"] = (arg_cert_cert, arg_cert_key)
 
     try:
         r = requests.get(**args_for_req)
