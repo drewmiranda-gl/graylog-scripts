@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# graylog-update-csv-file.sh
+# 
+# Usage:
+# ./graylog-update-csv-file.sh
+# or
+# bash graylog-update-csv-file.sh
+# 
+# Uploads a new CSV file in place of an existing one, for a CSV Data Adapter
+
+# DECLARE VARIABLES ===========================================================
+RED="\e[31m"
+GREEN="\e[32m"
+BLUE="\e[34m"
+YELLOW="\e[33m"
+ENDCOLOR="\e[0m"
+
+CURDIR=$(pwd)
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+CONFIG_FILE_ABS_PATH="${SCRIPT_DIR}/.config.env"
+
+# FUNCTIONS ===================================================================
+
+# VALIDATE_MISSING_ENVVAR
+# 
+# Usage:
+# VALIDATE_MISSING_ENVVAR "ENV_VAR_NAME"
+# 
+# Tests if the specified ENVVAR is empty. Exits if empty.
+VALIDATE_MISSING_ENVVAR() {
+    local ENVVAR="$1"
+    if [[ -z ${!ENVVAR} ]]; then
+        echo -e "${RED}ERROR${ENDCOLOR}: envvar not configured ${BLUE}${ENVVAR}${ENDCOLOR}. Please reference ${BULE}.config.env.example${ENDCOLOR}"
+        exit 1
+    fi
+}
+
+# EXIT_ON_WHICH_EMPTY
+# 
+# Usage:
+# EXIT_ON_WHICH_EMPTY "binary_name"
+# 
+# Uses which to test if a program exists. Exists if missing.
+EXIT_ON_WHICH_EMPTY() {
+    (which $1 >/dev/null 2>&1)
+    exit_code=$?
+    if (( $exit_code > 0 )); then
+        echo "ERROR: cannot find ${1}"
+        exit
+    fi
+}
+
+# VALIDATION AND SAFETY CHECKS ================================================
+if [ -f "${CONFIG_FILE_ABS_PATH}" ]; then
+    source "${CONFIG_FILE_ABS_PATH}"
+else
+    echo -e "${RED}ERROR${ENDCOLOR}: missing config file: ${CONFIG_FILE_ABS_PATH}"
+    echo -e "Consult ${BLUE}.config.env.example${ENDCOLOR} as an example and copy to ${GREEN}.config.env${ENDCOLOR}"
+    exit 1
+fi
+
+VALIDATE_MISSING_ENVVAR "GRAYLOG_URI_BASE"
+VALIDATE_MISSING_ENVVAR "GRAYLOG_API_TOKEN"
+VALIDATE_MISSING_ENVVAR "GRAYLOG_DATA_ADAPTER_NAME"
+VALIDATE_MISSING_ENVVAR "GRAYLOG_CSV_FILE_NAME_FULLPATH"
+
+EXIT_ON_WHICH_EMPTY "curl"
+EXIT_ON_WHICH_EMPTY "jq"
+
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# MAIN LOGIC OF SCRIPT ========================================================
+
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# MAIN LOGIC OF SCRIPT ========================================================
+
+# check if data adapter already exists
+currs=""
+currs=$(curl \
+    --silent \
+    --fail \
+    -X GET \
+    "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=50&sort=title&order=desc&query=${GRAYLOG_DATA_ADAPTER_NAME}" \
+    --user "${GRAYLOG_API_TOKEN}":token)
+data_adapter_found_count=0
+data_adapter_found_count=$(echo ${currs} | jq '.count')
+
+if [ $data_adapter_found_count -lt 1 ]; then
+    echo -e "${RED}Data adapter missing${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
+    echo "Please use ${BLUE}graylog-create-csv-adapter.sh${ENDCOLOR} to create data adapter."
+    exit 1
+else
+    echo -e "${GREEN}Data table exists:${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
+fi
+
+# Validate that CSV file exists
+if [ ! -f "${GRAYLOG_CSV_FILE_NAME_FULLPATH}" ]; then
+    echo -e "${RED}ERROR${ENDCOLOR}: CSV file missing: ${BLUE}${GRAYLOG_CSV_FILE_NAME_FULLPATH}${ENDCOLOR}"
+    exit 1
+else
+    echo -e "${GREEN}Validated CSV file exists${ENDCOLOR}: ${BLUE}${GRAYLOG_CSV_FILE_NAME_FULLPATH}${ENDCOLOR}"
+fi
+
+# Upload CSV file
+echo "Upload CSV File..."
+CSV_UPLOAD_CURL_RS=$(curl -X POST "${GRAYLOG_URI_BASE}/api/plugins/org.graylog.plugins.cloud/data_adapters/csv_files" \
+    --fail \
+    --silent \
+    --user "${GRAYLOG_API_TOKEN}":token \
+    -H 'accept: application/json' \
+    -H 'x-requested-by: XMLHttpRequest' \
+    -F "file=@${GRAYLOG_CSV_FILE_NAME_FULLPATH};type=text/csv")
+curl_rs_exit_code=0
+curl_rs_exit_code=$?
+# verify curl returned a successful (0) exit code
+if (( $? > 0 )); then
+    echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
+    echo "$CSV_UPLOAD_CURL_RS"
+    exit 1
+fi
+# obtain file_id returned from csv upload curl request
+UPLOADED_DATA_ADAPTER_FILE_ID=$(echo $CSV_UPLOAD_CURL_RS | jq -r '.id')
+echo -e "${GREEN}Uploaded File Successfully${ENDCOLOR}: ${BLUE}${UPLOADED_DATA_ADAPTER_FILE_ID}${ENDCOLOR}"
+
+# Get existing Data Adapter config
+EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(curl \
+    --silent \
+    --fail \
+    "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=1&sort=title&order=desc&query=name%3A%22${GRAYLOG_DATA_ADAPTER_NAME}%22" \
+    --user "${GRAYLOG_API_TOKEN}":token)
+GRAYLOG_DATA_ADAPTER_ID=$(echo $EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF | jq -r '.data_adapters[].id')
+
+EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF=""
+EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(curl \
+    --silent \
+    --fail \
+    "${GRAYLOG_URI_BASE}/api/system/lookup/adapters/${GRAYLOG_DATA_ADAPTER_ID}" \
+    --user "${GRAYLOG_API_TOKEN}":token)
+# echo -e "${RED}${EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF}${ENDCOLOR}"
+
+NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(echo $EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF | jq ".config.file_id = \"${UPLOADED_DATA_ADAPTER_FILE_ID}\"")
+
+echo -e "${YELLOW}${NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF}${ENDCOLOR}"
+
+# Update existing Data Adapter with new CSV file_id
+curl "${GRAYLOG_URI_BASE}/api/system/lookup/adapters/${GRAYLOG_DATA_ADAPTER_ID}" \
+    --silent \
+    --fail \
+    --user "${GRAYLOG_API_TOKEN}":token \
+    -X 'PUT' \
+    -H 'accept: application/json' \
+    -H 'content-type: application/json' \
+    -H 'x-requested-by: XMLHttpRequest' \
+    --data-raw "${NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF}"
+curl_rs_exit_code=0
+curl_rs_exit_code=$?
+# verify curl returned a successful (0) exit code
+if (( $? > 0 )); then
+    echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
+    echo "$CSV_UPLOAD_CURL_RS"
+    exit 1
+fi
+
+echo -e "${GREEN}Data Adapter CSV File Updated Successfully${ENDCOLOR}"
