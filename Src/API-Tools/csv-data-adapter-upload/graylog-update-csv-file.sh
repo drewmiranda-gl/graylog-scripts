@@ -113,6 +113,13 @@ fi
 
 data_adapter_found_count=0
 data_adapter_found_count=$(echo ${currs} | jq '.count')
+jq_ret_code=$?
+if [ $jq_ret_code -gt 0 ]; then
+    echo -e "${RED}ERROR${ENDCOLOR}: invalid json returned."
+    echo -e "${YELLOW}${currs}${ENDCOLOR}"
+    echo -e "${RED}ERROR${ENDCOLOR}: invalid json returned above."
+    exit 1
+fi
 
 if [ $data_adapter_found_count -lt 1 ]; then
     echo -e "${RED}Data adapter missing${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
