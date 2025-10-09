@@ -10,11 +10,28 @@
 # Uploads a CSV file and creates a CSV data adapter using uploaded CSV file
 
 # DECLARE VARIABLES ===========================================================
-RED="\e[31m"
-GREEN="\e[32m"
-BLUE="\e[34m"
-YELLOW="\e[33m"
-ENDCOLOR="\e[0m"
+case "$OSTYPE" in
+  darwin*|bsd*)
+    # echo "Detected OS: MacOS (${OSTYPE})"
+    # CLICOLOR=1
+    # export CLICOLOR=1
+    # export TERM="xterm-256color"
+    # autoload -U colors && colors
+    RED="\x1B[31m"
+    GREEN="\x1B[32m"
+    BLUE="\x1B[34m"
+    YELLOW="\x1B[33m"
+    ENDCOLOR="\x1B[0m"
+    ;;
+  *)
+    RED="\e[31m"
+    GREEN="\e[32m"
+    BLUE="\e[34m"
+    YELLOW="\e[33m"
+    ENDCOLOR="\e[0m"
+  ;;
+esac
+
 
 CURDIR=$(pwd)
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
