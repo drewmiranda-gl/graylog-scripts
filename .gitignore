@@ -30,3 +30,4 @@ Src/log-es-to-prom-export/out.txt
 Src/log-es-to-prom-export/run.log
 Src/ES-OS-Count-Field-Usage/cert.crt
 Src/ES-OS-Count-Field-Usage/cert.key
+Src/API-Tools/csv-data-adapter-upload/.config.env
