@@ -120,7 +120,7 @@ if [ $data_adapter_found_count -gt 0 ]; then
     exit 0
 fi
 
-echo -e "${YELLOW}Data table does not exist:${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
+echo -e "${YELLOW}Data table does not exist${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
 
 # Validate that CSV file exists
 if [ ! -f "${GRAYLOG_CSV_FILE_NAME_FULLPATH}" ]; then
