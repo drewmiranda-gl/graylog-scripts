@@ -100,7 +100,7 @@ currs=$(curl \
     --silent \
     --fail \
     -X GET \
-    "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=50&sort=title&order=desc&query=${GRAYLOG_DATA_ADAPTER_NAME}" \
+    "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=50&sort=title&order=desc&query=name%3A%22${GRAYLOG_DATA_ADAPTER_NAME}%22" \
     --user "${GRAYLOG_API_TOKEN}":token)
 curl_rs_exit_code=0
 curl_rs_exit_code=$?
