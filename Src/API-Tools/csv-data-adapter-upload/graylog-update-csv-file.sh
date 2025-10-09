@@ -22,8 +22,6 @@ case "$OSTYPE" in
     BLUE="\x1B[34m"
     YELLOW="\x1B[33m"
     ENDCOLOR="\x1B[0m"
-
-    sed_no_backup=(-i '')
     ;;
   *)
     RED="\e[31m"
@@ -31,8 +29,6 @@ case "$OSTYPE" in
     BLUE="\e[34m"
     YELLOW="\e[33m"
     ENDCOLOR="\e[0m"
-    
-    sed_no_backup=(-i)
   ;;
 esac
 
