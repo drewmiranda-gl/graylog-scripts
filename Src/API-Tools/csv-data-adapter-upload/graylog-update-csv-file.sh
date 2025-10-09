@@ -90,6 +90,9 @@ EXIT_ON_WHICH_EMPTY "jq"
 # =============================================================================
 # MAIN LOGIC OF SCRIPT ========================================================
 
+# trim tailing slash, we cannot have it
+GRAYLOG_URI_BASE=$(echo $GRAYLOG_URI_BASE | sed 's/\/$//')
+
 # check if data adapter already exists
 currs=""
 currs=$(curl \
