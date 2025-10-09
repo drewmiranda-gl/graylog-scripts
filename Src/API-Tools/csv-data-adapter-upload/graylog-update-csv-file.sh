@@ -119,7 +119,7 @@ if [ $data_adapter_found_count -lt 1 ]; then
     echo "Please use ${BLUE}graylog-create-csv-adapter.sh${ENDCOLOR} to create data adapter."
     exit 1
 else
-    echo -e "${GREEN}Data table exists:${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
+    echo -e "${GREEN}Data table exists${ENDCOLOR}: ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR}"
 fi
 
 # Validate that CSV file exists
