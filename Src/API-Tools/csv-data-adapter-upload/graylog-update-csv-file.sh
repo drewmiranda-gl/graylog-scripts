@@ -95,6 +95,19 @@ EXIT_ON_WHICH_EMPTY "jq"
 # trim tailing slash, we cannot have it
 GRAYLOG_URI_BASE=$(echo $GRAYLOG_URI_BASE | sed 's/\/$//')
 
+# TEST THAT WE CAN SUCCESSFULLY AUTH
+INITIAL_CURL_HTTP_CODE=$(curl \
+    -s -o /dev/null -w "%{http_code}" \
+    "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=1" \
+    --user "${GRAYLOG_API_TOKEN}":token)
+# echo $INITIAL_CURL_HTTP_CODE
+if [[ $INITIAL_CURL_HTTP_CODE -eq 200 ]]; then
+    echo -e "${GREEN}Verified that we can successfully authenticate to Graylog API.${ENDCOLOR}"
+else
+    echo -e "${RED}ERROR${ENDCOLOR}: ${RED}Failed to authenticate${ENDCOLOR} to Graylog API using token. HTTP Code: ${RED}${INITIAL_CURL_HTTP_CODE}${ENDCOLOR} . Please verify token is correct."
+    exit 1
+fi
+
 # check if data adapter already exists
 echo -e "Checking if data table ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR} already exists..."
 currs=""
