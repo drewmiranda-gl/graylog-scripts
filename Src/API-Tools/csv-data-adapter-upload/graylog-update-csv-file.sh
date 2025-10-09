@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# wget https://raw.githubusercontent.com/drewmiranda-gl/graylog-scripts/refs/heads/main/Src/API-Tools/csv-data-adapter-upload/graylog-update-csv-file.sh
+
 # graylog-update-csv-file.sh
 # 
 # Usage:
