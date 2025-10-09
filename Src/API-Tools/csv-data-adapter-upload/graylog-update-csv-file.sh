@@ -102,6 +102,15 @@ currs=$(curl \
     -X GET \
     "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=50&sort=title&order=desc&query=${GRAYLOG_DATA_ADAPTER_NAME}" \
     --user "${GRAYLOG_API_TOKEN}":token)
+curl_rs_exit_code=0
+curl_rs_exit_code=$?
+# verify curl returned a successful (0) exit code
+if (( $? > 0 )); then
+    echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
+    echo "$CSV_UPLOAD_CURL_RS"
+    exit 1
+fi
+
 data_adapter_found_count=0
 data_adapter_found_count=$(echo ${currs} | jq '.count')
 
