@@ -94,6 +94,7 @@ EXIT_ON_WHICH_EMPTY "jq"
 GRAYLOG_URI_BASE=$(echo $GRAYLOG_URI_BASE | sed 's/\/$//')
 
 # check if data adapter already exists
+echo -e "Checking if data table ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR} already exists..."
 currs=""
 currs=$(curl \
     --silent \
