@@ -108,6 +108,30 @@ else
     exit 1
 fi
 
+# get Graylog Version
+currs=$(curl \
+    --silent \
+    --fail \
+    -X GET \
+    "${GRAYLOG_URI_BASE}/api/" \
+    --user "${GRAYLOG_API_TOKEN}":token)
+glver=$(echo $currs | jq -r ".version")
+echo "Graylog Version: ${glver}"
+glver_first_digit=$(echo ${glver%%.*})
+
+if [[ $glver_first_digit -eq 6 || $glver_first_digit -eq 7 ]]; then
+  if [[ $glver_first_digit -eq 6 ]]; then
+    URL_CSV_FILE_UPLOAD="/api/plugins/org.graylog.plugins.cloud/data_adapters/csv_files"
+  fi
+  if [[ $glver_first_digit -eq 7 ]]; then
+    URL_CSV_FILE_UPLOAD="/api/plugins/org.graylog.plugins.lookup/data_adapters/csv_files"
+  fi
+else
+    echo -e "${RED}ERROR${ENDCOLOR}: Graylog version MUST be either 6 or 7. Graylog Version: ${glver}"
+  exit 1
+fi
+# exit 0
+
 # check if data adapter already exists
 echo -e "Checking if data table ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR} already exists..."
 currs=""
@@ -155,7 +179,7 @@ fi
 # Upload CSV file
 echo "Upload CSV File..."
 curl_rs_exit_code=0
-CSV_UPLOAD_CURL_RS=$(curl -X POST "${GRAYLOG_URI_BASE}/api/plugins/org.graylog.plugins.cloud/data_adapters/csv_files" \
+CSV_UPLOAD_CURL_RS=$(curl -X POST "${GRAYLOG_URI_BASE}${URL_CSV_FILE_UPLOAD}" \
     --fail \
     --silent \
     --user "${GRAYLOG_API_TOKEN}":token \
