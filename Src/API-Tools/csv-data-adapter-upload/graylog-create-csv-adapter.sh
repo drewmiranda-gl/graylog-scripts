@@ -111,16 +111,16 @@ fi
 # check if data adapter already exists
 echo -e "Checking if data table ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR} already exists..."
 currs=""
+curl_rs_exit_code=0
 currs=$(curl \
     --silent \
     --fail \
     -X GET \
     "${GRAYLOG_URI_BASE}/api/system/lookup/adapters?page=1&per_page=50&sort=title&order=desc&query=name%3A%22${GRAYLOG_DATA_ADAPTER_NAME}%22" \
     --user "${GRAYLOG_API_TOKEN}":token)
-curl_rs_exit_code=0
 curl_rs_exit_code=$?
 # verify curl returned a successful (0) exit code
-if (( $? > 0 )); then
+if (( $curl_rs_exit_code > 0 )); then
     echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
     echo "$CSV_UPLOAD_CURL_RS"
     exit 1
@@ -154,17 +154,17 @@ fi
 
 # Upload CSV file
 echo "Upload CSV File..."
-CSV_UPLOAD_CURL_RS=$(curl -X POST "${GRAYLOG_URI_BASE}/api/plugins/org.graylog.plugins.cloud/data_adapters/csv_files" \
+curl_rs_exit_code=0
+CSV_UPLOAD_CURL_RS=$(curl -X POST "${GRAYLOG_URI_BASE}${URL_CSV_FILE_UPLOAD}" \
     --fail \
     --silent \
     --user "${GRAYLOG_API_TOKEN}":token \
     -H 'accept: application/json' \
     -H 'x-requested-by: XMLHttpRequest' \
     -F "file=@${GRAYLOG_CSV_FILE_NAME_FULLPATH};type=text/csv")
-curl_rs_exit_code=0
 curl_rs_exit_code=$?
 # verify curl returned a successful (0) exit code
-if (( $? > 0 )); then
+if (( $curl_rs_exit_code > 0 )); then
     echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
     echo "$CSV_UPLOAD_CURL_RS"
     exit 1
@@ -176,6 +176,7 @@ echo -e "${GREEN}Uploaded File Successfully${ENDCOLOR}: ${BLUE}${UPLOADED_DATA_A
 # Create CSV Data Adapter
 echo "Creating CSV Data Adapter..."
 GRAYLOG_DATA_ADAPTER_FILE_ID="${UPLOADED_DATA_ADAPTER_FILE_ID}"
+curl_rs_exit_code=0
 curl "${GRAYLOG_URI_BASE}/api/system/lookup/adapters" \
     --silent \
     --fail \
@@ -187,7 +188,7 @@ curl "${GRAYLOG_URI_BASE}/api/system/lookup/adapters" \
 curl_rs_exit_code=0
 curl_rs_exit_code=$?
 # verify curl returned a successful (0) exit code
-if (( $? > 0 )); then
+if (( $curl_rs_exit_code > 0 )); then
     echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Data Adapter creation failed."
     exit 1
 fi
