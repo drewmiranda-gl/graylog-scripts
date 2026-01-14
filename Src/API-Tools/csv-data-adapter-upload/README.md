@@ -7,6 +7,8 @@ This is a proof of concept tool that contains 2 parts:
 2. `graylog-update-csv-file.sh`
     - Uploads a CSV file and replaces the existing csv file for a given CSV data adapter
 
+These scripts have been tested against and known to work with Graylog 6.3 and 7.0 .
+
 # Usage
 
 Prerequisites:
