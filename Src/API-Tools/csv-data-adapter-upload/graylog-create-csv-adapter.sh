@@ -108,6 +108,34 @@ else
     exit 1
 fi
 
+# get Graylog Version
+currs=$(curl \
+    --silent \
+    --fail \
+    -X GET \
+    "${GRAYLOG_URI_BASE}/api/" \
+    --user "${GRAYLOG_API_TOKEN}":token)
+glver=$(echo $currs | jq -r ".version")
+echo "Graylog Version: ${glver}"
+glver_first_digit=$(echo ${glver%%.*})
+
+if [[ $glver_first_digit -eq 6 || $glver_first_digit -eq 7 ]]; then
+  if [[ $glver_first_digit -eq 6 ]]; then
+    URL_CSV_FILE_UPLOAD="/api/plugins/org.graylog.plugins.cloud/data_adapters/csv_files"
+    JSON_DA_CONFIG_MULTIVAL=""
+    JSON_DA_CONFIG_CIDR=""
+  fi
+  if [[ $glver_first_digit -eq 7 ]]; then
+    URL_CSV_FILE_UPLOAD="/api/plugins/org.graylog.plugins.lookup/data_adapters/csv_files"
+    JSON_DA_CONFIG_MULTIVAL=",\"multi_value_lookup\":false"
+    JSON_DA_CONFIG_CIDR=",\"cidr_lookup\":false"
+  fi
+else
+    echo -e "${RED}ERROR${ENDCOLOR}: Graylog version MUST be either 6 or 7. Graylog Version: ${glver}"
+  exit 1
+fi
+# exit 0
+
 # check if data adapter already exists
 echo -e "Checking if data table ${BLUE}${GRAYLOG_DATA_ADAPTER_NAME}${ENDCOLOR} already exists..."
 currs=""
@@ -184,8 +212,8 @@ curl "${GRAYLOG_URI_BASE}/api/system/lookup/adapters" \
     -H 'accept: application/json' \
     -H 'content-type: application/json' \
     -H 'x-requested-by: XMLHttpRequest' \
-    --data-raw "{\"id\":null,\"title\":\"${GRAYLOG_DATA_ADAPTER_NAME}\",\"description\":\"\",\"name\":\"${GRAYLOG_DATA_ADAPTER_NAME}\",\"config\":{\"type\":\"uploadcsvfile\",\"file_id\":\"${GRAYLOG_DATA_ADAPTER_FILE_ID}\",\"separator\":\",\",\"quotechar\":\"\\\"\",\"key_column\":\"a\",\"value_column\":\"b\",\"case_insensitive_lookup\":false}}"
-curl_rs_exit_code=0
+    --data-raw "{\"id\":null,\"title\":\"${GRAYLOG_DATA_ADAPTER_NAME}\",\"description\":\"\",\"name\":\"${GRAYLOG_DATA_ADAPTER_NAME}\",\"config\":{\"type\":\"uploadcsvfile\",\"file_id\":\"${GRAYLOG_DATA_ADAPTER_FILE_ID}\",\"separator\":\",\",\"quotechar\":\"\\\"\",\"key_column\":\"a\",\"value_column\":\"b\",\"case_insensitive_lookup\":false${JSON_DA_CONFIG_MULTIVAL}${JSON_DA_CONFIG_CIDR}}}"
+# echo $?
 curl_rs_exit_code=$?
 # verify curl returned a successful (0) exit code
 if (( $curl_rs_exit_code > 0 )); then
