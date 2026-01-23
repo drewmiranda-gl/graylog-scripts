@@ -217,6 +217,7 @@ NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(echo $EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CO
 
 if [[ $glver_first_digit -eq 7 ]]; then
     NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(echo $NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF | jq ".config.multi_value_lookup = false")
+    NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(echo $NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF | jq ".config.cidr_lookup = false")
 fi
 
 echo -e "${YELLOW}${NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF}${ENDCOLOR}"
