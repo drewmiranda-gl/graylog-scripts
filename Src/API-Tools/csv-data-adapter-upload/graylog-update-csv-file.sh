@@ -236,7 +236,16 @@ curl_rs_exit_code=$?
 # verify curl returned a successful (0) exit code
 if (( $curl_rs_exit_code > 0 )); then
     echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
-    echo "$CSV_UPLOAD_CURL_RS"
+    echo -e "${RED}"
+    curl "${GRAYLOG_URI_BASE}/api/system/lookup/adapters/${GRAYLOG_DATA_ADAPTER_ID}" \
+        --v \
+        --user "${GRAYLOG_API_TOKEN}":token \
+        -X 'PUT' \
+        -H 'accept: application/json' \
+        -H 'content-type: application/json' \
+        -H 'x-requested-by: XMLHttpRequest' \
+        --data-raw "${NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF}"
+    echo -e "${ENDCOLOR}"
     exit 1
 fi
 
