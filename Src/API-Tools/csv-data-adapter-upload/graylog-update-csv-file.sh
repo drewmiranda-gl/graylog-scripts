@@ -215,6 +215,10 @@ EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(curl \
 
 NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(echo $EXISTING_GRAYLOG_DATA_ADAPTER_JSON_CONF | jq ".config.file_id = \"${UPLOADED_DATA_ADAPTER_FILE_ID}\"")
 
+if [[ $glver_first_digit -eq 7 ]]; then
+    NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF=$(echo $NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF | jq ".config.multi_value_lookup = false")
+fi
+
 echo -e "${YELLOW}${NEW_GRAYLOG_DATA_ADAPTER_JSON_CONF}${ENDCOLOR}"
 
 # Update existing Data Adapter with new CSV file_id
