@@ -238,7 +238,7 @@ if (( $curl_rs_exit_code > 0 )); then
     echo -e "${RED}ERROR${ENDCOLOR}: CURL ERROR ${curl_rs_exit_code}. Upload failed."
     echo -e "${RED}"
     curl "${GRAYLOG_URI_BASE}/api/system/lookup/adapters/${GRAYLOG_DATA_ADAPTER_ID}" \
-        --v \
+        -v \
         --user "${GRAYLOG_API_TOKEN}":token \
         -X 'PUT' \
         -H 'accept: application/json' \
