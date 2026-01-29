@@ -43,7 +43,7 @@ function Send-Gelf {
     Requires PowerShell 5.1 or later due. (only tested against 5.1 and later)
 
     .LINK
-    
+    https://github.com/drewmiranda-gl/graylog-scripts/tree/main/Src/Send-Gelf/Powershell
     #>
     [CmdletBinding()]
     param (
